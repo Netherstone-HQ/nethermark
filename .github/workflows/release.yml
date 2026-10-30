@@ -1,0 +1,32 @@
+name: Release
+
+# Publishes every package whose version isn't on npm yet, then pushes the
+# release tags. Versions are bumped in a normal PR with `pnpm changeset version`.
+# Stays off until the repository variable NPM_PUBLISH is "true".
+on:
+  push:
+    branches: [main]
+
+concurrency: release
+
+jobs:
+  publish:
+    name: Publish
+    if: vars.NPM_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: git push origin --tags
