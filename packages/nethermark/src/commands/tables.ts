@@ -73,6 +73,11 @@ function spotAt(state: EditorState, pos: number): Spot | null {
   return { table, node, row, column: Math.max(0, column) };
 }
 
+/** Whether the main cursor is in a table. */
+export function inTable(state: EditorState): boolean {
+  return spotAt(state, state.selection.main.head) !== null;
+}
+
 /** A command on the table at the main cursor. */
 function tableCommand(
   build: (state: EditorState, spot: Spot) => TransactionSpec | null,
