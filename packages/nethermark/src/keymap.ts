@@ -27,6 +27,25 @@ export const defaultShortcuts: Readonly<Record<CommandName, readonly string[]>> 
   horizontalRule: [],
   table: [],
   image: [],
+  indentList: ["Tab"],
+  outdentList: ["Shift-Tab"],
+  toggleTaskDone: [],
+  addRowAbove: [],
+  addRowBelow: [],
+  addColumnLeft: [],
+  addColumnRight: [],
+  deleteRow: [],
+  deleteColumn: [],
+  alignColumnLeft: [],
+  alignColumnCenter: [],
+  alignColumnRight: [],
+  formatTable: [],
+  hardBreak: ["Shift-Enter"],
+  footnote: [],
+  convertToReference: [],
+  convertToInline: [],
+  escapeSelection: [],
+  clearFormatting: [],
 };
 
 /** The keys each command ends up with: the defaults, with a host's changes on top. */
@@ -40,15 +59,24 @@ export function resolveShortcuts(overrides: Shortcuts = {}): Record<CommandName,
 }
 
 /**
+ * Commands that hand their key on when they don't apply: Tab outside a list
+ * moves focus out of the editor, so keyboard users aren't trapped, and
+ * Shift-Enter where a hard break can't go makes a plain new line.
+ */
+const HANDS_ON = new Set<CommandName>(["indentList", "outdentList", "hardBreak"]);
+
+/**
  * The formatting key bindings, ahead of CodeMirror's own so Mod-I means
- * italic rather than selecting the parent syntax node.
+ * italic rather than selecting the parent syntax node. The others keep the
+ * browser's own action for their keys, such as a bookmark on Mod-B, from
+ * running when the command doesn't apply.
  */
 export function formattingKeymap(overrides?: Shortcuts): Extension {
   const resolved = resolveShortcuts(overrides);
   return Prec.high(
     keymap.of(
       (Object.keys(resolved) as CommandName[]).flatMap((name) =>
-        resolved[name].map((key) => ({ key, run: commands[name], preventDefault: true })),
+        resolved[name].map((key) => ({ key, run: commands[name], preventDefault: !HANDS_ON.has(name) })),
       ),
     ),
   );
