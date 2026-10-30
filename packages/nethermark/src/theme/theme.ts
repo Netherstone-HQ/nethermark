@@ -55,6 +55,7 @@ export type Theme = {
   // Shape
   readonly radius: string;
   readonly buttonSize: string;
+  readonly iconSize: string;
   readonly gap: string;
   readonly borderWidth: string;
   readonly focusRingWidth: string;

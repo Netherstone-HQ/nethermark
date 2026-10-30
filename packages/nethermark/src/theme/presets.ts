@@ -9,6 +9,7 @@ const shared = {
   headingScale: "1.1",
   radius: "6px",
   buttonSize: "32px",
+  iconSize: "20px",
   gap: "4px",
   borderWidth: "1px",
   focusRingWidth: "2px",

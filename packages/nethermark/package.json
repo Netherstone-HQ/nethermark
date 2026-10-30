@@ -23,13 +23,15 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "icons": "node scripts/icons.mjs"
   },
   "peerDependencies": {
     "@codemirror/commands": "^6.11.0",
@@ -56,6 +58,7 @@
     "@lezer/common": "^1.5.4",
     "@lezer/highlight": "^1.2.5",
     "@lezer/markdown": "^1.8.1",
+    "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.19.2",
     "vite": "^8.3.5",

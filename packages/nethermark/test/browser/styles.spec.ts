@@ -9,7 +9,7 @@ function rgb(hex: string): string {
 
 async function mount(page: Page, doc: string, theme: "light" | "dark" = "light") {
   await page.goto("/");
-  await page.evaluate(([d, t]) => window.mount(d!, t as "light" | "dark"), [doc, theme]);
+  await page.evaluate(([d, t]) => window.mount(d!, { theme: t as "light" | "dark" }), [doc, theme]);
 }
 
 test("syntax takes its colors from the theme", async ({ page }) => {

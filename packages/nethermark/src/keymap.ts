@@ -1,4 +1,4 @@
-import { Prec, type Extension } from "@codemirror/state";
+import { Facet, Prec, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { commands, type CommandName } from "./commands/index.js";
 
@@ -58,6 +58,11 @@ export function resolveShortcuts(overrides: Shortcuts = {}): Record<CommandName,
   return resolved;
 }
 
+/** The keys each command has in this editor, for tooltips to show. */
+export const shortcutsFacet = Facet.define<Record<CommandName, readonly string[]>, Record<CommandName, readonly string[]>>({
+  combine: (values) => values[0] ?? { ...defaultShortcuts },
+});
+
 /**
  * Commands that hand their key on when they don't apply: Tab outside a list
  * moves focus out of the editor, so keyboard users aren't trapped, and
@@ -73,11 +78,14 @@ const HANDS_ON = new Set<CommandName>(["indentList", "outdentList", "hardBreak"]
  */
 export function formattingKeymap(overrides?: Shortcuts): Extension {
   const resolved = resolveShortcuts(overrides);
-  return Prec.high(
-    keymap.of(
-      (Object.keys(resolved) as CommandName[]).flatMap((name) =>
-        resolved[name].map((key) => ({ key, run: commands[name], preventDefault: !HANDS_ON.has(name) })),
+  return [
+    shortcutsFacet.of(resolved),
+    Prec.high(
+      keymap.of(
+        (Object.keys(resolved) as CommandName[]).flatMap((name) =>
+          resolved[name].map((key) => ({ key, run: commands[name], preventDefault: !HANDS_ON.has(name) })),
+        ),
       ),
     ),
-  );
+  ];
 }
