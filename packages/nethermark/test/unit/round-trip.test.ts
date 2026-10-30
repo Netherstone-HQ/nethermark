@@ -14,6 +14,13 @@ const TOGGLES: CommandName[] = [
   "bold", "italic", "strikethrough", "inlineCode", "link",
   "heading1", "heading2", "heading3", "heading4", "heading5", "heading6",
   "bulletList", "orderedList", "taskList", "quote", "codeBlock",
+  "toggleTaskDone", "alignColumnLeft", "alignColumnCenter", "alignColumnRight", "escapeSelection",
+];
+
+/** Commands undone by another one: each pair, run in order, gives the doc back. */
+const PAIRS: [CommandName, CommandName][] = [
+  ["indentList", "outdentList"],
+  ["convertToReference", "convertToInline"],
 ];
 
 /** The nodes an inline command makes. */
@@ -93,6 +100,26 @@ function nestedOrBareQuote(state: EditorState, name: CommandName): boolean {
   return false;
 }
 
+/**
+ * Mixed states a second run settles one way, as line rule 2 does: tasks
+ * partly done all become done then undone, a column aligned another way
+ * loses its alignment, and existing escapes come off with the new ones.
+ */
+function mixed(state: EditorState, name: CommandName): boolean {
+  const { from, to } = state.selection.main;
+  const text = state.sliceDoc(state.doc.lineAt(from).from, state.doc.lineAt(to).to);
+  if (name === "toggleTaskDone") return /\[[xX]\]/.test(text) && /\[ \]/.test(text);
+  if (name === "escapeSelection") return state.sliceDoc(from, to).includes("\\");
+  if (name.startsWith("alignColumn")) {
+    const want = { alignColumnLeft: "left", alignColumnCenter: "center", alignColumnRight: "right" }[name as string];
+    const aligned = commands.alignColumnLeft.isActive?.(state) ? "left"
+      : commands.alignColumnCenter.isActive?.(state) ? "center"
+      : commands.alignColumnRight.isActive?.(state) ? "right" : "none";
+    return aligned !== "none" && aligned !== want;
+  }
+  return false;
+}
+
 /** Taking a fence off drops its info string and its kind of fence. */
 function inFence(state: EditorState, name: CommandName): boolean {
   if (name !== "codeBlock") return false;
@@ -140,7 +167,7 @@ describe.each(files)("%s", (file) => {
     const failures: string[] = [];
     for (const selection of selections(base.doc)) {
       const start = base.update({ selection }).state;
-      if (lossy(start, name) || switchesKind(start, name) || nestedOrBareQuote(start, name) || inFence(start, name)) continue;
+      if (lossy(start, name) || switchesKind(start, name) || nestedOrBareQuote(start, name) || inFence(start, name) || mixed(start, name)) continue;
       const once = apply(start, commands[name]);
       if (!once) continue;
       checked.set(name, (checked.get(name) ?? 0) + 1);
@@ -157,4 +184,24 @@ describe.each(files)("%s", (file) => {
 
 test("every toggle is checked somewhere in the corpus", () => {
   for (const name of TOGGLES) expect(checked.get(name) ?? 0, name).toBeGreaterThan(0);
+});
+
+describe.each(files)("%s pairs", (file) => {
+  const doc = readFileSync(new URL(file, corpus), "utf8");
+  test.each(PAIRS)("%s then %s gives the doc back", (forward, back) => {
+    const base = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
+    const failures: string[] = [];
+    for (const selection of selections(base.doc)) {
+      const once = apply(base.update({ selection }).state, commands[forward]);
+      if (!once || once.doc.eq(base.doc)) continue;
+      checked.set(forward, (checked.get(forward) ?? 0) + 1);
+      const twice = apply(once, commands[back]);
+      if ((twice ?? once).doc.toString() !== doc) failures.push(`at ${selection.main.from}-${selection.main.to}`);
+    }
+    expect(failures).toEqual([]);
+  });
+});
+
+test("every pair is checked somewhere in the corpus", () => {
+  for (const [forward] of PAIRS) expect(checked.get(forward) ?? 0, forward).toBeGreaterThan(0);
 });

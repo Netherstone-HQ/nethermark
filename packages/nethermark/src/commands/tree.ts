@@ -40,6 +40,9 @@ export function children(node: SyntaxNode): SyntaxNode[] {
 /** Code, where Markdown characters are just text. */
 export const CODE = new Set(["FencedCode", "CodeBlock", "InlineCode", "HTMLBlock", "CommentBlock"]);
 
+/** Block-level code, which a cursor at its very end is still in. */
+export const BLOCK_CODE = new Set([...CODE].filter((name) => name !== "InlineCode"));
+
 /** The longest run of backticks in some text, which a code fence must be longer than. */
 export function longestBacktickRun(text: string): number {
   let longest = 0;

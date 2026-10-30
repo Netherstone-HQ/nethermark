@@ -19,7 +19,7 @@ const MAX_MARKER_GAP = 4;
  * quote markers end at `quoteEnd`, indentation at `indentEnd`, and the list
  * or heading marker with its spaces at `textStart`.
  */
-type LineModel = {
+export type LineModel = {
   readonly line: Line;
   readonly quoteEnd: number;
   readonly indentEnd: number;
@@ -39,13 +39,13 @@ type LineModel = {
 };
 
 /** Spaces after a marker that belong to it: one to four, or one before indented code. */
-function markerGap(text: string, at: number): number {
+export function markerGap(text: string, at: number): number {
   let gap = 0;
   while (text[at + gap] === " ") gap++;
   return gap > MAX_MARKER_GAP ? 1 : gap;
 }
 
-function lineModel(state: EditorState, tree: Tree, line: Line): LineModel {
+export function lineModel(state: EditorState, tree: Tree, line: Line): LineModel {
   const text = line.text;
   let quoteEnd = 0;
   for (let at = 0; at < text.length; ) {
@@ -129,7 +129,7 @@ function lineModel(state: EditorState, tree: Tree, line: Line): LineModel {
 }
 
 /** Each line a selection touches, once, in order. A range ending at a line's start leaves that line out. */
-function touchedLines(state: EditorState): Line[] {
+export function touchedLines(state: EditorState): Line[] {
   const numbers = new Set<number>();
   for (const range of state.selection.ranges) {
     const first = state.doc.lineAt(range.from).number;
@@ -168,9 +168,10 @@ function setKind(state: EditorState, model: LineModel, target: Target): ChangeSp
 /**
  * Numbers the items of every ordered list in a range from the first item
  * the range touches: each one follows the item before it, and a list's
- * first item keeps its number.
+ * first item keeps its number, unless its marker is in `restart`, as for an
+ * item just nested under another, which starts its new list at 1.
  */
-function renumber(state: EditorState, from: number, to: number): ChangeSpec[] {
+function renumber(state: EditorState, from: number, to: number, restart: ReadonlySet<number>): ChangeSpec[] {
   const tree = treeUpTo(state, state.doc.length);
   const changes: ChangeSpec[] = [];
   tree.iterate({
@@ -184,7 +185,8 @@ function renumber(state: EditorState, from: number, to: number): ChangeSpec[] {
         if (item.name !== "ListItem" || mark?.name !== "ListMark") continue;
         const text = state.sliceDoc(mark.from, mark.to);
         const number = Number.parseInt(text, 10);
-        const wanted: number = item.to < from || previous === null ? number : previous + 1;
+        const first = previous === null ? (restart.has(mark.from) ? 1 : number) : previous + 1;
+        const wanted: number = item.to < from ? number : first;
         if (wanted !== number) changes.push({ from: mark.from, to: mark.to, insert: `${wanted}${text.slice(-1)}` });
         previous = wanted;
       }
@@ -193,14 +195,23 @@ function renumber(state: EditorState, from: number, to: number): ChangeSpec[] {
   return changes;
 }
 
-/** A transaction for line changes, with ordered lists renumbered after them. */
-function lineTransaction(state: EditorState, specs: ChangeSpec[], lines: readonly Line[]): TransactionSpec | null {
+/**
+ * A transaction for line changes, with ordered lists renumbered after them.
+ * `restart` holds list markers, before the changes, whose lists start over.
+ */
+export function lineTransaction(
+  state: EditorState,
+  specs: ChangeSpec[],
+  lines: readonly Line[],
+  restart: readonly number[] = [],
+): TransactionSpec | null {
   if (specs.length === 0) return null;
   const first = lines[0]!;
   const last = lines[lines.length - 1]!;
   let changes: ChangeSet = state.changes(specs);
   const next = state.update({ changes }).state;
-  const renumbering = renumber(next, changes.mapPos(first.from, -1), changes.mapPos(last.to, 1));
+  const restarts = new Set(restart.map((pos) => changes.mapPos(pos, 1)));
+  const renumbering = renumber(next, changes.mapPos(first.from, -1), changes.mapPos(last.to, 1), restarts);
   if (renumbering.length > 0) changes = changes.compose(next.changes(renumbering));
   return { changes, selection: state.selection.map(changes, 1) };
 }

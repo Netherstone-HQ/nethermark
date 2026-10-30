@@ -1,6 +1,27 @@
 import { codeBlockCommand, horizontalRuleCommand, imageCommand, tableCommand } from "./block.js";
 import { boldCommand, inlineCodeCommand, italicCommand, linkCommand, strikethroughCommand } from "./inline.js";
 import {
+  addColumnLeftCommand,
+  addColumnRightCommand,
+  addRowAboveCommand,
+  addRowBelowCommand,
+  alignColumnCenterCommand,
+  alignColumnLeftCommand,
+  alignColumnRightCommand,
+  deleteColumnCommand,
+  deleteRowCommand,
+  formatTableCommand,
+} from "./tables.js";
+import {
+  clearFormattingCommand,
+  convertToInlineCommand,
+  convertToReferenceCommand,
+  escapeSelectionCommand,
+  footnoteCommand,
+  hardBreakCommand,
+} from "./text.js";
+import { indentListCommand, outdentListCommand, toggleTaskDoneCommand } from "./lists.js";
+import {
   bulletListCommand,
   headingCommands,
   orderedListCommand,
@@ -33,6 +54,25 @@ export const commands = {
   horizontalRule: horizontalRuleCommand,
   table: tableCommand,
   image: imageCommand,
+  indentList: indentListCommand,
+  outdentList: outdentListCommand,
+  toggleTaskDone: toggleTaskDoneCommand,
+  addRowAbove: addRowAboveCommand,
+  addRowBelow: addRowBelowCommand,
+  addColumnLeft: addColumnLeftCommand,
+  addColumnRight: addColumnRightCommand,
+  deleteRow: deleteRowCommand,
+  deleteColumn: deleteColumnCommand,
+  alignColumnLeft: alignColumnLeftCommand,
+  alignColumnCenter: alignColumnCenterCommand,
+  alignColumnRight: alignColumnRightCommand,
+  formatTable: formatTableCommand,
+  hardBreak: hardBreakCommand,
+  footnote: footnoteCommand,
+  convertToReference: convertToReferenceCommand,
+  convertToInline: convertToInlineCommand,
+  escapeSelection: escapeSelectionCommand,
+  clearFormatting: clearFormattingCommand,
 };
 
 export type CommandName = keyof typeof commands;

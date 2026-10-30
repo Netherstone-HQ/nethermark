@@ -1,7 +1,7 @@
 import { EditorSelection, type ChangeSpec, type EditorState, type SelectionRange, type TransactionSpec } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { defineCommand, type MarkdownCommand } from "./command.js";
-import { ancestors, children, CODE, longestBacktickRun, treeForSelection, treeUpTo } from "./tree.js";
+import { ancestors, BLOCK_CODE, children, CODE, longestBacktickRun, treeForSelection, treeUpTo } from "./tree.js";
 
 type Range = { from: number; to: number };
 
@@ -54,8 +54,6 @@ function overlapping(tree: Tree, range: Range, name: string): SyntaxNode[] {
   return nodes;
 }
 
-/** Block-level code, which a cursor at its very end is still in. */
-const BLOCK_CODE = new Set([...CODE].filter((name) => name !== "InlineCode"));
 const INLINE_CODE = new Set(["InlineCode"]);
 
 /**
@@ -564,3 +562,25 @@ export const linkCommand = defineCommand({
     return enclosing(tree, range, LINKS) !== null;
   },
 });
+
+/** Formats and links whose markers clear formatting takes off. */
+export const CLEARABLE = new Set(["StrongEmphasis", "Emphasis", "Strikethrough", "InlineCode", "Link", "Autolink"]);
+
+/** The changes that take a format's or link's markers off and keep its text. */
+export function markerChanges(state: EditorState, node: SyntaxNode): ChangeSpec[] {
+  switch (node.name) {
+    case "StrongEmphasis":
+      return bold.unwrap(state, node);
+    case "Emphasis":
+      return italic.unwrap(state, node);
+    case "Strikethrough":
+      return strike.unwrap(state, node);
+    case "InlineCode":
+      return code.unwrap(state, node);
+    case "Link":
+    case "Autolink":
+      return linkMarkers(state, node);
+    default:
+      return [];
+  }
+}

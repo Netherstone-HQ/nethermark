@@ -24,4 +24,12 @@ describe("shortcuts", () => {
     expect(italic).toBeGreaterThanOrEqual(0);
     expect(italic).toBeLessThan(other);
   });
+
+  test("Tab, Shift-Tab and Shift-Enter hand their key on when the command doesn't apply", () => {
+    const bindings = EditorState.create({ extensions: [formattingKeymap()] }).facet(keymap).flat();
+    for (const key of ["Tab", "Shift-Tab", "Shift-Enter"]) {
+      expect(bindings.find((b) => b.key === key)?.preventDefault, key).toBe(false);
+    }
+    expect(bindings.find((b) => b.key === "Mod-b")?.preventDefault).toBe(true);
+  });
 });
