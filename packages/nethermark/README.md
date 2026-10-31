@@ -1,20 +1,37 @@
 # @netherstone/nethermark
 
-A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/): a toolbar, formatting commands that toggle on and off, keyboard shortcuts, and a theme you can swap. It edits GitHub-flavored Markdown as plain text.
+A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/).
 
-It reads the Markdown syntax tree to decide what's already there, so `**` inside code is never mistaken for bold. It doesn't render a preview: turning Markdown into HTML stays with your page.
+Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Writers don't need to know Markdown syntax. Formatting commands toggle on and off.
 
-> Not published to npm yet.
+Ships neutral light and dark themes. Change colors, fonts and sizes with `extendTheme`, or style any part with CSS through its `nme-` class.
+
+Commands read the Markdown syntax tree at the cursor before they edit:
+
+- In `**bold**`, Bold removes the `**`.
+- In `` `x**2` ``, the `**` is code, so Bold leaves it as it is.
+
+Versions are 0.x, so a minor release can include breaking API changes. See the [changelog](CHANGELOG.md).
 
 ## Install
 
-CodeMirror is a peer dependency, so a CodeMirror fix reaches you without a release of this package.
+```bash
+npm install @netherstone/nethermark
+```
+
+The CodeMirror packages are peer dependencies. npm 7+ and pnpm 8+ install them automatically. With older npm or pnpm, install them with the package:
 
 ```bash
 npm install @netherstone/nethermark @codemirror/state @codemirror/view @codemirror/commands @codemirror/language @codemirror/lang-markdown @lezer/markdown @lezer/highlight
 ```
 
-## Use
+Yarn doesn't install peer dependencies, so add them too:
+
+```bash
+yarn add @netherstone/nethermark @codemirror/state @codemirror/view @codemirror/commands @codemirror/language @codemirror/lang-markdown @lezer/markdown @lezer/highlight
+```
+
+## Quick start
 
 ```ts
 import { createMarkdownEditor } from "@netherstone/nethermark";
@@ -22,112 +39,160 @@ import { createMarkdownEditor } from "@netherstone/nethermark";
 const editor = createMarkdownEditor({
   parent: document.querySelector("#editor")!,
   doc: "# Hello",
-  onChange: (doc) => save(doc),
+  onChange: (doc) => console.log(doc),
 });
-
-editor.run("bold");
-editor.getValue();
 ```
 
-### Options
+This renders the toolbar and editor into `#editor`. Styles are injected at runtime, so there's no CSS file to import.
+
+The editor shows Markdown source only. Rendering a preview or converting to HTML is up to the host.
+
+## Options
 
 | Option | Type | Default |
 | --- | --- | --- |
 | `parent` | `HTMLElement` | required |
 | `doc` | `string` | `""` |
-| `onChange` | `(doc: string) => void`, once per change | none |
+| `onChange` | `(doc: string) => void` | none |
 | `toolbar` | `ToolbarItem[]` or `false` | `defaultToolbar` |
-| `theme` | `Theme`, `"auto"`, or `{ light, dark }` | `themes.light` |
+| `theme` | `Theme`, `"auto"` or `{ light, dark }` | `themes.light` |
 | `lineNumbers` | `boolean` | `true` |
 | `lineWrapping` | `boolean` | `true` |
 | `readOnly` | `boolean` | `false` |
 | `placeholder` | `string` | none |
-| `ariaLabel` | `string`, the text area's accessible name | none |
-| `shortcuts` | keys per command name, or `false` for none | the defaults below |
-| `commands` | your own commands by name | none |
-| `classNames` | your classes per part, such as `{ strong: "font-black" }` | none |
-| `onPaste` | `({ html, text }) => Markdown`, for pasted HTML | none |
-| `onDrop` | `({ files, position }) => Markdown`, for dropped files | none |
-| `markdownExtensions` | Lezer Markdown extensions, for your own syntax | none |
-| `extensions` | more CodeMirror extensions, added last | none |
+| `ariaLabel` | `string` | none |
+| `shortcuts` | keys by command name | the defaults below |
+| `commands` | your commands by name | none |
+| `classNames` | your classes by part | none |
+| `onPaste` | `PasteHook` | none |
+| `onDrop` | `DropHook` | none |
+| `markdownExtensions` | Lezer Markdown extensions | none |
+| `extensions` | CodeMirror extensions | none |
 
-`theme: "auto"` follows the system's light or dark preference, and `{ light, dark }` does the same with your two themes.
+- `onChange` fires once per transaction that changes the doc, with the full doc. Debounce it in the host if needed.
+- `theme: "auto"` follows `prefers-color-scheme`, switching between `themes.light` and `themes.dark`, or between your `{ light, dark }` pair.
+- `ariaLabel` sets the accessible name of the content element.
+- `extensions` are appended last and can override the editor's defaults.
 
-`onPaste` and `onDrop` can return a string, nothing (for the editor's own handling), or a promise of either. While a promise is pending, the insert point moves with any edits made meanwhile.
+## The editor handle
 
-### The handle
+`createMarkdownEditor` returns a handle:
 
-| Member | |
+| Member | What it does |
 | --- | --- |
-| `view` | the CodeMirror `EditorView` |
-| `getValue()` | the doc, with the line endings it came in with |
-| `setValue(doc)` | replaces the doc as one undo step |
-| `focus()` | |
-| `run(name)` | runs a command by name, yours or built in |
-| `setTheme(theme)` | keeps the cursor and undo history |
-| `setReadOnly(on)` | |
-| `setShortcuts(map)` | commands left out keep their defaults |
-| `destroy()` | takes the editor and toolbar out of the page |
+| `view` | The CodeMirror `EditorView` |
+| `getValue()` | Returns the doc, with its original line endings |
+| `setValue(doc)` | Replaces the doc in one undo step |
+| `focus()` | Focuses the text area |
+| `run(name)` | Runs a command by name |
+| `setTheme(theme)` | Swaps the theme. Keeps the cursor and undo history |
+| `setReadOnly(on)` | Toggles read-only. Editing buttons are disabled while it's on |
+| `setShortcuts(map)` | Rebinds keys. Commands left out keep their defaults |
+| `destroy()` | Removes the editor and toolbar from the page |
 
-### Your own `EditorView`
-
-`markdownEditor(options)` returns the editor as an extension bundle. It takes the same options except `parent`, `doc` and `toolbar`. `createToolbar(view, items)` builds the toolbar on its own, for you to place anywhere.
-
-```ts
-const view = new EditorView({ parent, extensions: [markdownEditor({ theme: "auto" })] });
-const toolbar = createToolbar(view);
-parent.prepend(toolbar.dom);
-```
+`setTheme`, `setReadOnly` and `setShortcuts` reconfigure CodeMirror compartments, so nothing is rebuilt. `run` throws on an unknown command name.
 
 ## Commands
 
-`commands` holds every command as a plain CodeMirror `StateCommand`, so it works with or without the toolbar. Each one makes one undo step and works on every selection range, and the formatting ones toggle: run one again and the formatting comes off.
+Every command applies to all selection ranges and is one undo step. Formatting commands toggle: running one again removes the formatting.
 
-| Command | Keys |
+| Command | Default keys |
 | --- | --- |
-| `bold`, `italic`, `strikethrough`, `inlineCode`, `link` | Mod-B, Mod-I, Mod-Shift-X, Mod-E, Mod-K |
-| `heading1` … `heading6`, `paragraph` | Mod-Alt-1 … Mod-Alt-6, Mod-Alt-0 |
-| `bulletList`, `orderedList`, `taskList`, `quote` | Mod-Shift-8, Mod-Shift-7, Mod-Shift-9, Mod-Shift-. |
-| `codeBlock` | Mod-Alt-8 |
-| `indentList`, `outdentList` | Tab, Shift-Tab, in lists |
-| `hardBreak` | Shift-Enter |
-| `horizontalRule`, `table`, `image`, `toggleTaskDone`, `footnote`, `convertToReference`, `convertToInline`, `escapeSelection`, `clearFormatting` | none |
-| `addRowAbove`, `addRowBelow`, `addColumnLeft`, `addColumnRight`, `deleteRow`, `deleteColumn`, `alignColumnLeft`, `alignColumnCenter`, `alignColumnRight`, `formatTable` | none; in the toolbar's table menu |
+| `bold` | `Mod-b` |
+| `italic` | `Mod-i` |
+| `strikethrough` | `Mod-Shift-x` |
+| `inlineCode` | `Mod-e` |
+| `link` | `Mod-k` |
+| `heading1` to `heading6` | `Mod-Alt-1` to `Mod-Alt-6` |
+| `paragraph` | `Mod-Alt-0` |
+| `bulletList` | `Mod-Shift-8` |
+| `orderedList` | `Mod-Shift-7` |
+| `taskList` | `Mod-Shift-9` |
+| `quote` | `Mod-Shift-.` |
+| `codeBlock` | `Mod-Alt-8` |
+| `indentList`, `outdentList` | `Tab`, `Shift-Tab` in a list |
+| `hardBreak` | `Shift-Enter` |
+| `horizontalRule`, `table`, `image` | none |
+| `toggleTaskDone`, `footnote`, `clearFormatting`, `escapeSelection` | none |
+| `convertToReference`, `convertToInline` | none |
+| `addRowAbove`, `addRowBelow`, `addColumnLeft`, `addColumnRight` | none |
+| `deleteRow`, `deleteColumn`, `formatTable` | none |
+| `alignColumnLeft`, `alignColumnCenter`, `alignColumnRight` | none |
 
-Mod is ⌘ on a Mac and Ctrl elsewhere. Keys use CodeMirror's format, so `shortcuts: { bold: ["Mod-Shift-b"], italic: false }` changes Bold and takes Italic's keys off.
+`Mod` is Cmd on macOS and Ctrl elsewhere. Enter continues lists, tasks and quotes, from `@codemirror/lang-markdown`. Outside a list, Tab isn't captured, so focus moves out of the editor.
 
-Make your own with `defineCommand({ run, isActive })`, where `run` returns the transaction to make, or `null` when the command doesn't apply. Pass yours in `commands`, and toolbar items, `run` and `shortcuts` find them by name:
+`horizontalRule`, `table` and `image` always insert and don't toggle.
+
+`commands` exports every command as a CodeMirror `StateCommand`, usable with or without the toolbar.
+
+### Change the keys
+
+Keys use CodeMirror's key format. Map a command name to a list of keys, or to `false` to unbind it:
 
 ```ts
-const shout = defineCommand({
+createMarkdownEditor({
+  parent,
+  shortcuts: { bold: ["Mod-Shift-b"], italic: false },
+});
+
+editor.setShortcuts({ bold: ["Mod-b"] });
+```
+
+### Add a command
+
+`defineCommand({ run, isActive })` creates a command. `run(state)` returns a transaction spec, or `null` when the command doesn't apply. `isActive(state)` drives the button's pressed state.
+
+Pass custom commands in the `commands` option. `run`, `shortcuts` and toolbar items then resolve them by name. Commands are registered per editor, so two editors on one page don't clash.
+
+```ts
+const upper = defineCommand({
   run: (state) => {
     const { from, to } = state.selection.main;
-    return from === to ? null : { changes: { from, to, insert: state.sliceDoc(from, to).toUpperCase() } };
+    if (from === to) return null;
+    return { changes: { from, to, insert: state.sliceDoc(from, to).toUpperCase() } };
   },
 });
 
 createMarkdownEditor({
   parent,
-  commands: { shout },
-  shortcuts: { shout: ["Mod-u"] },
-  toolbar: [...defaultToolbar, defineToolbarItem({ command: "shout", icon: "!", label: "Shout" })],
+  commands: { upper },
+  shortcuts: { upper: ["Mod-Shift-u"] },
+  toolbar: [...defaultToolbar, defineToolbarItem({ command: "upper", icon: "AA", label: "Uppercase" })],
 });
 ```
 
-### Your own syntax
+### Your own Markdown syntax
 
-Your own Markdown, such as `==highlight==`, callouts or Mermaid fences, gets commands with the same toggle and pressed-state rules as the built-in ones. `defineCommand` takes one of four kinds:
+`defineCommand` also accepts four declarative kinds. They reuse the built-in command rules.
 
-| Kind | For | Example |
+| Kind | Use it for | Example |
 | --- | --- | --- |
-| `inline: { mark, node }` | a mark around text, with every inline rule | `{ inline: { mark: "==", node: "Highlight" } }` |
-| `line: { prefix }` | a prefix on each touched line | `{ line: { prefix: "%% " } }` |
-| `fence: info` | a fenced block with an info string | `{ fence: "mermaid" }` |
-| `block: { header, prefix }` | a header line, then a prefix on every line | `{ block: { header: "> [!NOTE]", prefix: "> " } }` |
+| `inline: { mark, node }` | A mark around text | `{ inline: { mark: "==", node: "Highlight" } }` |
+| `line: { prefix }` | A prefix at the start of a line | `{ line: { prefix: "%% " } }` |
+| `fence: info` | A fenced block with an info string | `{ fence: "mermaid" }` |
+| `block: { header, prefix }` | A header line, then a prefix on every line | `{ block: { header: "> [!NOTE]", prefix: "> " } }` |
 
-An inline mark is found in the syntax tree, so the parser has to know it: pass a [Lezer Markdown extension](https://github.com/lezer-parser/markdown) that parses it, with a `Highlight` node and its `HighlightMark` markers, in `markdownExtensions`. The other kinds read their own text, or a `node` you name for a line prefix.
+`line`, `fence` and `block` match their syntax by text. `inline` marks are matched in the syntax tree, so the parser must know them: pass a [Lezer Markdown extension](https://github.com/lezer-parser/markdown) in `markdownExtensions`. The marker node defaults to the node name plus `Mark`. This extension parses `==text==`:
 
 ```ts
+import type { MarkdownConfig } from "@lezer/markdown";
+
+const delimiter = { resolve: "Highlight", mark: "HighlightMark" };
+
+const highlightSyntax: MarkdownConfig = {
+  defineNodes: [{ name: "Highlight" }, { name: "HighlightMark" }],
+  parseInline: [{
+    name: "Highlight",
+    after: "Emphasis",
+    parse(cx, next, pos) {
+      if (next !== 61 || cx.char(pos + 1) !== 61 || cx.char(pos + 2) === 61) return -1;
+      const spaceBefore = /\s|^$/.test(cx.slice(pos - 1, pos));
+      const spaceAfter = /\s|^$/.test(cx.slice(pos + 2, pos + 3));
+      return cx.addDelimiter(delimiter, pos, pos + 2, !spaceAfter, !spaceBefore);
+    },
+  }],
+};
+
 createMarkdownEditor({
   parent,
   markdownExtensions: [highlightSyntax],
@@ -137,29 +202,136 @@ createMarkdownEditor({
   },
   toolbar: [
     ...defaultToolbar,
-    { command: "highlight", icon: "=", label: "Highlight" },
-    { command: "note", icon: "!", label: "Note" },
+    { command: "highlight", icon: "H", label: "Highlight" },
+    { command: "note", icon: "N", label: "Note" },
   ],
 });
 ```
 
 ## Toolbar
 
-A toolbar item is a button `{ command, icon, label, shortcut? }`, a menu `{ menu, icon, label, visible? }`, or `"separator"`. An icon is an SVG string or plain text. `inMore: true` keeps an item in the More menu. Items that don't fit the width move into More, from the right.
+Default items, in order:
 
-Keyboard: the toolbar is one Tab stop, with arrow keys, Home and End along it. Alt-F10 moves focus from the editor to the toolbar, and Escape goes back.
+Bold, Italic, Strikethrough, Inline code | Heading 1, Heading 2, Heading 3 | Bullet list, Numbered list, Task list, Quote | Link, Image, Code block, Table, Horizontal rule
 
-## Theming and styling
+Headings 4 to 6 always sit in the More menu. The Table menu, with row, column and alignment commands, appears only while the cursor is in a table. Items that don't fit move into More from the right, measured with a `ResizeObserver`.
 
-A theme is a plain object of tokens: colors, fonts and sizes. The package writes them as `--nme-` custom properties, and all of its CSS reads them. `themes.light` and `themes.dark` are neutral, and pass WCAG AA contrast for text and every syntax token. Change a few tokens with `extendTheme`:
+Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pass. Tooltips show the label and the bound keys for the current platform.
+
+`defaultToolbar` is exported for reordering or extending. Item shapes:
+
+| Item | Shape |
+| --- | --- |
+| Button | `{ command, icon, label, shortcut?, inMore? }` |
+| Menu | `{ menu, icon, label, visible?, inMore? }` |
+| Separator | `"separator"` |
+
+- `command` is a command name or a command.
+- `icon` is an SVG string or plain text, like `H1`.
+- `shortcut` lists keys to show in the tooltip of a custom command. Built-in commands show their bound keys.
+- `inMore: true` pins the item to the More menu.
+- `visible(state)` shows the menu only while it returns `true`.
+
+`defineToolbarItem` validates an item and throws on an empty label or icon.
+
+### Use your own EditorView
+
+`markdownEditor(options)` returns the editor as a CodeMirror extension bundle. It takes the same options as `createMarkdownEditor`, minus `parent`, `doc` and `toolbar`.
+
+`createToolbar(view, items?)` attaches a toolbar to any `EditorView` and returns `{ dom, focus(), destroy() }`. Mount `dom` anywhere. It reads keys and theme from the editor state, so it follows `setShortcuts` and `setTheme`.
 
 ```ts
-const theme = extendTheme(themes.dark, { link: "#7aa2f7", radius: "8px" });
-editor.setTheme(theme);
+import { EditorView } from "@codemirror/view";
+import { createToolbar, markdownEditor } from "@netherstone/nethermark";
+
+const view = new EditorView({ parent, extensions: [markdownEditor({ theme: "auto" })] });
+const toolbar = createToolbar(view);
+parent.prepend(toolbar.dom);
 ```
 
-Every part has a stable class: `nme-root`, `nme-toolbar`, `nme-button`, `nme-gutter`, `nme-content`, line kinds like `nme-line-h1` and `nme-line-quote`, and syntax like `nme-strong` and `nme-link`. The package's CSS sits in `@layer nme`, so your own rules win without `!important`. The exception is the few rules that replace CodeMirror's own defaults (selection, cursor, active line, gutters, focus outline): change those through tokens, or with a more specific selector.
+## Paste and drop
+
+Plain text pastes unchanged. The package doesn't parse HTML. Two hooks hand HTML and files to the host:
+
+- `onPaste({ html, text })` fires when the clipboard holds HTML.
+- `onDrop({ files, position })` fires when files are dropped. Dropped text inserts like a paste.
+
+Both return Markdown to insert, nothing to fall back to the default handling, or a promise of either. While a promise is pending, the insert position is mapped through edits made in the meantime.
+
+```ts
+createMarkdownEditor({
+  parent,
+  onDrop: async ({ files }) => {
+    const url = await upload(files[0]);
+    return `![](${url})`;
+  },
+});
+```
+
+`upload` stands for your own storage code.
+
+## Themes
+
+A theme is a flat object of tokens: colors, fonts and sizes. Tokens are written as `--nme-` custom properties on the editor root, and the package's CSS reads only those properties.
+
+`themes.light` and `themes.dark` are neutral presets. Their text and syntax colors pass WCAG AA (4.5:1), checked by a test.
+
+`extendTheme(base, overrides)` returns a new theme with some tokens replaced:
+
+```ts
+import { extendTheme, themes } from "@netherstone/nethermark";
+
+editor.setTheme(extendTheme(themes.dark, { link: "#7aa2f7", radius: "8px" }));
+```
+
+| Group | Tokens |
+| --- | --- |
+| Surface | `background`, `foreground`, `gutterBackground`, `gutterForeground`, `activeLine`, `selection`, `cursor`, `border` |
+| Toolbar | `toolbarBackground`, `buttonForeground`, `buttonHover`, `buttonPressed`, `buttonPressedForeground`, `focusRing`, `separator` |
+| Syntax | `heading`, `strong`, `emphasis`, `strike`, `code`, `codeBackground`, `link`, `url`, `quote`, `listMarker`, `taskMarker`, `markup`, `tableBorder`, `comment` |
+| Type | `fontFamily`, `monoFamily`, `fontSize`, `lineHeight`, `headingScale` |
+| Shape | `radius`, `buttonSize`, `iconSize`, `gap`, `borderWidth`, `focusRingWidth`, `scrollbarThumb`, `scrollbarThumbHover` |
+
+- `scheme` (`"light"` or `"dark"`) sets `color-scheme` and CodeMirror's dark flag.
+- `markup` colors syntax characters such as `**`, `#` and `>`.
+- `comment` colors HTML comments.
+- Heading level n is sized `fontSize × headingScale^(6 − n)`. `1` keeps every line one size. The presets use `1.1`.
+- The presets use system sans and mono font stacks. Code, fences and tables use `monoFamily`.
+
+## Styling
+
+Every part has a stable `nme-` class. Class names are public API, so renaming one is a breaking change.
+
+| Part | Classes |
+| --- | --- |
+| Editor | `nme-root`, `nme-gutter`, `nme-content` |
+| Toolbar | `nme-toolbar`, `nme-button`, `nme-separator`, `nme-more`, `nme-menu`, `nme-menu-item` |
+| Lines | `nme-line-h1` to `nme-line-h6`, `nme-line-quote`, `nme-line-list`, `nme-line-task`, `nme-line-fence`, `nme-line-table` |
+| Inline | `nme-strong`, `nme-em`, `nme-strike`, `nme-code`, `nme-link`, `nme-markup` |
+| Other syntax | `nme-heading`, `nme-url`, `nme-quote`, `nme-comment`, `nme-list-marker`, `nme-task-marker`, `nme-table-border` |
+
+Pressed buttons carry `aria-pressed="true"`.
+
+All package CSS sits in `@layer nme`, so unlayered host rules win without `!important`. The exception is the rules that replace CodeMirror's own unlayered defaults: selection, cursor, active line, gutters and focus outline. Override those through tokens, or with a more specific selector such as `.nme-root .cm-gutters`. The package sets no inline styles besides the custom properties on the root.
+
+`classNames` adds your classes to parts, keyed by class name without the `nme-` prefix:
+
+```ts
+createMarkdownEditor({ parent, classNames: { strong: "font-black", "line-h1": "tracking-tight" } });
+```
+
+## Accessibility
+
+- The toolbar has `role="toolbar"` and one Tab stop. Arrow keys, Home and End move between buttons.
+- Alt-F10 moves focus from the editor to the toolbar. Escape moves it back.
+- The More menu is a menu with `aria-expanded` and arrow keys.
+- Focus rings come from the `focusRing` token and are never removed.
+- Clicking a button runs its command and returns focus to the editor.
+
+## Browsers
+
+Tested with Playwright in Chromium, Firefox and WebKit.
 
 ## License
 
-[MIT](LICENSE). The toolbar icons are from [Phosphor Icons](https://phosphoricons.com), MIT: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Toolbar icons are from [Phosphor Icons](https://phosphoricons.com), also MIT. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
