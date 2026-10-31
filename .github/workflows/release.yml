@@ -4,7 +4,8 @@ name: Release
 # tags and makes a GitHub Release for each, with its CHANGELOG section and npm link.
 # Versions are bumped in a normal PR with `pnpm changeset version`. Stays off
 # until the repository variable NPM_PUBLISH is "true". Publishing uses npm
-# trusted publishing, so no token is stored.
+# trusted publishing. The NPM_TOKEN lines only cover the first publish, which
+# trusted publishing can't do; they come out once it's set up.
 on:
   push:
     branches: [main]
@@ -24,7 +25,14 @@ jobs:
       - uses: pnpm/setup@v3
         with:
           require-lockfile: true
+      # changeset publish makes annotated tags, which need a tagger.
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - run: echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" >> ~/.npmrc
       - run: pnpm release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: git push origin --tags
       - run: node scripts/github-releases.mjs
         env:
