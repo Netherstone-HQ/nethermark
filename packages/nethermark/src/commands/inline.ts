@@ -168,12 +168,12 @@ function runs(state: EditorState, pos: number, dir: -1 | 1, chars: string): Run[
  * runs that mirror each other on both sides and that the parser didn't take
  * as markers, since an empty format doesn't parse. Null if there are none.
  */
-function emptyNest(state: EditorState, tree: Tree, pos: number): { left: Run[]; right: Run[] } | null {
-  const left = runs(state, pos, -1, NEST_CHARS);
-  const right = runs(state, pos, 1, NEST_CHARS);
+function emptyNest(state: EditorState, tree: Tree, pos: number, wrapper: Wrapper): { left: Run[]; right: Run[] } | null {
+  const left = runs(state, pos, -1, wrapper.nestChars);
+  const right = runs(state, pos, 1, wrapper.nestChars);
   const parsed = (run: Run) => {
     const node = tree.resolveInner(run.from, 1);
-    return MARKERS.has(node.name) && node.parent?.name !== "FencedCode";
+    return (MARKERS.has(node.name) || wrapper.markNodes.has(node.name)) && node.parent?.name !== "FencedCode";
   };
   // The nest ends at the first pair of runs that don't mirror each other,
   // or that the parser took as markers of a real format.
@@ -199,6 +199,10 @@ type Wrapper = {
   readonly mark: string;
   /** Kinds of code it does nothing in. */
   readonly code: ReadonlySet<string>;
+  /** The characters empty formats around a cursor are made of, this format's among them. */
+  readonly nestChars: string;
+  /** The parser's nodes for this format's markers. */
+  readonly markNodes: ReadonlySet<string>;
 };
 
 /** The doc text of a range, leaving out some parts of it. */
@@ -219,6 +223,8 @@ function markerWrapper(node: string, markNode: string, mark: string, inNest: (ru
     mark,
     code: CODE,
     inNest,
+    nestChars: NEST_CHARS.includes(mark[0]!) ? NEST_CHARS : NEST_CHARS + mark[0]!,
+    markNodes: new Set([markNode]),
     unwrap: (_state, found) => {
       const marks = children(found).filter((child) => child.name === markNode);
       const open = marks[0];
@@ -241,6 +247,8 @@ const code: Wrapper = {
   mark: "`",
   code: BLOCK_CODE,
   inNest: (run) => run.char === "`",
+  nestChars: NEST_CHARS,
+  markNodes: new Set(["CodeMark"]),
   unwrap: (state, found) => {
     const marks = children(found).filter((child) => child.name === "CodeMark");
     const open = marks[0];
@@ -281,12 +289,12 @@ function formatRange(state: EditorState, tree: Tree, range: SelectionRange, wrap
   if (found) {
     const changes = state.changes(wrapper.unwrap(state, found));
     const text = EditorSelection.range(changes.mapPos(found.from, 1), changes.mapPos(found.to, -1));
-    const onlyMarkers = [...state.sliceDoc(found.from, found.to)].every((char) => NEST_CHARS.includes(char));
+    const onlyMarkers = [...state.sliceDoc(found.from, found.to)].every((char) => wrapper.nestChars.includes(char));
     return { changes, range: range.empty && !onlyMarkers ? text : range.map(changes, 1) };
   }
 
   if (range.empty) {
-    const pos = emptyNest(state, tree, range.head) ? range.head : textPosition(state, tree, range.head);
+    const pos = emptyNest(state, tree, range.head, wrapper) ? range.head : textPosition(state, tree, range.head);
     return pos === null ? { range } : formatCursor(state, tree, pos, wrapper);
   }
 
@@ -387,7 +395,7 @@ function wordAround(state: EditorState, tree: Tree, pos: number): Range | null {
 
 /** Formats at an empty cursor: an empty format, the word, or a new pair. */
 function formatCursor(state: EditorState, tree: Tree, pos: number, wrapper: Wrapper) {
-  const nest = emptyNest(state, tree, pos);
+  const nest = emptyNest(state, tree, pos, wrapper);
   if (nest) {
     const index = nest.left.findIndex((run) => wrapper.inNest(run));
     const left = nest.left[index];
@@ -426,9 +434,21 @@ function inlineCommand(wrapper: Wrapper): MarkdownCommand {
       if (blocked(state, tree, range, wrapper.code)) return false;
       if (enclosing(tree, range, new Set([wrapper.node]), true)) return true;
       if (!range.empty) return false;
-      return emptyNest(state, tree, range.head)?.left.some((run) => wrapper.inNest(run)) ?? false;
+      return emptyNest(state, tree, range.head, wrapper)?.left.some((run) => wrapper.inNest(run)) ?? false;
     },
   });
+}
+
+/**
+ * A command for a host's own inline mark, such as `==` around a Highlight
+ * node, with every inline rule. The parser has to know the syntax, through
+ * the editor's `markdownExtensions`, for the command to see it in the tree.
+ * An empty pair toggles only for a mark of one repeated character.
+ */
+export function inlineMarkCommand({ mark, node, markNode = `${node}Mark` }: { mark: string; node: string; markNode?: string }): MarkdownCommand {
+  if (!mark) throw new RangeError('An inline mark needs its marker text, like "==".');
+  const repeated = [...mark].every((char) => char === mark[0]);
+  return inlineCommand(markerWrapper(node, markNode, mark, (run) => repeated && run.char === mark[0] && run.to - run.from === mark.length));
 }
 
 export const boldCommand = inlineCommand(bold);

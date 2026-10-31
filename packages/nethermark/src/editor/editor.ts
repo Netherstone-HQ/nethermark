@@ -1,5 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import type { MarkdownExtension } from "@lezer/markdown";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
   drawSelection,
@@ -41,6 +42,11 @@ export type MarkdownEditorOptions = {
   readonly classNames?: ClassNames;
   readonly onPaste?: PasteHook;
   readonly onDrop?: DropHook;
+  /**
+   * Lezer Markdown extensions, for a host's own syntax: its nodes then show
+   * in the tree, so commands from `defineCommand` find them.
+   */
+  readonly markdownExtensions?: readonly MarkdownExtension[];
   /** More CodeMirror extensions, added last so they can override the editor's own. */
   readonly extensions?: readonly Extension[];
 };
@@ -101,7 +107,7 @@ export function buildEditor(options: MarkdownEditorOptions, root: boolean): { ex
   const custom = options.commands ?? {};
   const { onChange } = options;
   const extension: Extension = [
-    markdown({ base: markdownLanguage }),
+    markdown({ base: markdownLanguage, extensions: [...(options.markdownExtensions ?? [])] }),
     history(),
     drawSelection(),
     dropCursor(),

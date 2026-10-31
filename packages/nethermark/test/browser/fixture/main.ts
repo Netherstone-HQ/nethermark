@@ -11,6 +11,7 @@ import {
   type Toolbar,
 } from "../../../src/index.js";
 import { formattingKeymap } from "../../../src/keymap.js";
+import { highlightSyntax } from "../../highlight-syntax.js";
 import { editorStyles, themeExtension } from "../../../src/styles/index.js";
 
 type Options = { theme?: keyof typeof themes; toolbar?: boolean; readOnly?: boolean; width?: string };
@@ -64,6 +65,8 @@ type CreateOptions = {
   ariaLabel?: string;
   classNames?: Record<string, string>;
   custom?: boolean;
+  /** A host's ==highlight== syntax, command and toolbar button. */
+  highlight?: boolean;
   paste?: "sync" | "async" | "none";
   drop?: "sync" | "async";
 };
@@ -117,6 +120,11 @@ window.create = (options = {}) => {
       commands: { shout },
       shortcuts: { shout: ["Mod-u"] },
       toolbar: [...defaultToolbar, { command: "shout", icon: "!", label: "Shout" }],
+    }),
+    ...(options.highlight && {
+      markdownExtensions: [highlightSyntax],
+      commands: { highlight: defineCommand({ inline: { mark: "==", node: "Highlight" } }) },
+      toolbar: [...defaultToolbar, { command: "highlight", icon: "=", label: "Highlight" }],
     }),
     ...(options.lineNumbers === false && { lineNumbers: false }),
     ...(options.readOnly && { readOnly: true }),
