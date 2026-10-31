@@ -1,5 +1,6 @@
 import { EditorSelection, EditorState, Text, type Extension } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import type { MarkdownExtension } from "@lezer/markdown";
 import type { MarkdownCommand } from "../src/index.js";
 
 /**
@@ -71,13 +72,16 @@ export function print(state: EditorState): string {
  * a command that inserts a bare "\n" instead of `state.lineBreak` leaves a
  * stray character in a line, which `print` refuses.
  */
-export function stateOf(text: string, { crlf = false, extensions = [] as Extension[] } = {}): EditorState {
+export function stateOf(
+  text: string,
+  { crlf = false, extensions = [] as Extension[], syntax = [] as MarkdownExtension[] } = {},
+): EditorState {
   const { doc, selection } = parse(text);
   return EditorState.create({
     doc: Text.of(doc.split("\n")),
     selection,
     extensions: [
-      markdown({ base: markdownLanguage }),
+      markdown({ base: markdownLanguage, extensions: syntax }),
       EditorState.allowMultipleSelections.of(true),
       crlf ? EditorState.lineSeparator.of("\r\n") : [],
       extensions,
@@ -86,7 +90,7 @@ export function stateOf(text: string, { crlf = false, extensions = [] as Extensi
 }
 
 /** Runs a command and prints the result, or null when it doesn't apply. */
-export function run(command: MarkdownCommand, text: string, options?: { crlf?: boolean }): string | null {
+export function run(command: MarkdownCommand, text: string, options?: { crlf?: boolean; syntax?: MarkdownExtension[] }): string | null {
   let state = stateOf(text, options);
   const applied = command({ state, dispatch: (tr) => (state = tr.state) });
   return applied ? print(state) : null;

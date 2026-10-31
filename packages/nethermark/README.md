@@ -48,6 +48,7 @@ editor.getValue();
 | `classNames` | your classes per part, such as `{ strong: "font-black" }` | none |
 | `onPaste` | `({ html, text }) => Markdown`, for pasted HTML | none |
 | `onDrop` | `({ files, position }) => Markdown`, for dropped files | none |
+| `markdownExtensions` | Lezer Markdown extensions, for your own syntax | none |
 | `extensions` | more CodeMirror extensions, added last | none |
 
 `theme: "auto"` follows the system's light or dark preference, and `{ light, dark }` does the same with your two themes.
@@ -110,6 +111,35 @@ createMarkdownEditor({
   commands: { shout },
   shortcuts: { shout: ["Mod-u"] },
   toolbar: [...defaultToolbar, defineToolbarItem({ command: "shout", icon: "!", label: "Shout" })],
+});
+```
+
+### Your own syntax
+
+Your own Markdown, such as `==highlight==`, callouts or Mermaid fences, gets commands with the same toggle and pressed-state rules as the built-in ones. `defineCommand` takes one of four kinds:
+
+| Kind | For | Example |
+| --- | --- | --- |
+| `inline: { mark, node }` | a mark around text, with every inline rule | `{ inline: { mark: "==", node: "Highlight" } }` |
+| `line: { prefix }` | a prefix on each touched line | `{ line: { prefix: "%% " } }` |
+| `fence: info` | a fenced block with an info string | `{ fence: "mermaid" }` |
+| `block: { header, prefix }` | a header line, then a prefix on every line | `{ block: { header: "> [!NOTE]", prefix: "> " } }` |
+
+An inline mark is found in the syntax tree, so the parser has to know it: pass a [Lezer Markdown extension](https://github.com/lezer-parser/markdown) that parses it, with a `Highlight` node and its `HighlightMark` markers, in `markdownExtensions`. The other kinds read their own text, or a `node` you name for a line prefix.
+
+```ts
+createMarkdownEditor({
+  parent,
+  markdownExtensions: [highlightSyntax],
+  commands: {
+    highlight: defineCommand({ inline: { mark: "==", node: "Highlight" } }),
+    note: defineCommand({ block: { header: "> [!NOTE]", prefix: "> " } }),
+  },
+  toolbar: [
+    ...defaultToolbar,
+    { command: "highlight", icon: "=", label: "Highlight" },
+    { command: "note", icon: "!", label: "Note" },
+  ],
 });
 ```
 

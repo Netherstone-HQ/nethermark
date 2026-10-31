@@ -180,3 +180,15 @@ test("destroy takes it all out of the page", async ({ page }) => {
   await page.evaluate(() => window.editor!.destroy());
   await expect(page.locator(".nme-root")).toHaveCount(0);
 });
+
+test("a host's own syntax gets a command, a toolbar button and a pressed state", async ({ page }) => {
+  await create(page, { doc: "word", highlight: true });
+  const button = page.locator('.nme-toolbar > .nme-button[aria-label="Highlight"]');
+  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
+  await button.click();
+  expect(await value(page)).toBe("==word==");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await button.click();
+  expect(await value(page)).toBe("word");
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});

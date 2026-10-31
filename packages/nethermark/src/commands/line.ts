@@ -342,3 +342,43 @@ export const quoteCommand = defineCommand({
     return false;
   },
 });
+
+// ── A host's own prefix ─────────────────────────────────────────────────────
+
+/**
+ * A command for a host's own line prefix, with the line rules: every
+ * touched line gets it after its quote markers and indentation; when every
+ * line has it, it comes off; blank lines and code are skipped. A line has
+ * the prefix when a `node` of that name starts its text, or, with no node
+ * given, when its text starts with the prefix.
+ */
+export function linePrefixCommand({ prefix, node }: { prefix: string; node?: string }): MarkdownCommand {
+  if (!prefix.trim()) throw new RangeError('A line prefix needs some text, like "%% ".');
+  const has = (tree: Tree, model: LineModel): boolean => {
+    const at = model.line.from + model.indentEnd;
+    if (node) {
+      for (const parent of ancestors(tree, at, 1)) if (parent.name === node && parent.from === at) return true;
+      return false;
+    }
+    return model.line.text.startsWith(prefix, model.indentEnd) || model.line.text.slice(model.indentEnd) === prefix.trimEnd();
+  };
+  return defineCommand({
+    run: (state) => {
+      const lines = touchedLines(state);
+      const tree = treeUpTo(state, lines[lines.length - 1]!.to);
+      const models = lines.map((line) => lineModel(state, tree, line)).filter((model) => !model.blank && !model.structural);
+      if (models.length === 0) return null;
+      const all = models.every((model) => has(tree, model));
+      const specs = all
+        ? models.map(({ line, indentEnd }) => ({ from: line.from + indentEnd, to: Math.min(line.to, line.from + indentEnd + prefix.length) }))
+        : models.filter((model) => !has(tree, model)).map(({ line, indentEnd }) => ({ from: line.from + indentEnd, insert: prefix }));
+      const changes = state.changes(specs);
+      return { changes, selection: state.selection.map(changes, 1) };
+    },
+    isActive: (state) => {
+      const line = state.doc.lineAt(state.selection.main.head);
+      const tree = treeUpTo(state, line.to);
+      return has(tree, lineModel(state, tree, line));
+    },
+  });
+}

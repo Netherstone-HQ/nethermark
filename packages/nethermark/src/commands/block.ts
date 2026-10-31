@@ -1,6 +1,6 @@
-import { EditorSelection, type ChangeSpec, type EditorState, type SelectionRange } from "@codemirror/state";
+import { EditorSelection, type ChangeSpec, type EditorState, type Line, type SelectionRange } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { defineCommand } from "./command.js";
+import { defineCommand, type MarkdownCommand } from "./command.js";
 import { ancestorNamed, CODE, longestBacktickRun, treeForSelection, treeUpTo } from "./tree.js";
 
 /** The shortest fence CommonMark allows. */
@@ -39,18 +39,18 @@ function containerPrefix(text: string): string {
   return /^[ \t>]*/.exec(text)?.[0] ?? "";
 }
 
-/** Wraps the lines a range touches in a fence longer than any backtick run in them. */
-function fence(state: EditorState, range: SelectionRange) {
+/** Wraps the lines a range touches in a fence longer than any backtick run in them, with an info string. */
+function fence(state: EditorState, range: SelectionRange, info: string) {
   const { first, last } = lineSpan(state, range);
   const fence = "`".repeat(Math.max(MIN_FENCE, longestBacktickRun(state.sliceDoc(first.from, last.to)) + 1));
   const prefix = containerPrefix(first.text);
   const changes = state.changes([
-    { from: first.from, insert: prefix + fence + state.lineBreak },
+    { from: first.from, insert: prefix + fence + info + state.lineBreak },
     { from: last.to, insert: state.lineBreak + prefix + fence },
   ]);
   // The code starts after the opening fence and its line break, which is
   // one position whatever the line break's text.
-  const codeStart = first.from + prefix.length + fence.length + 1;
+  const codeStart = first.from + prefix.length + fence.length + info.length + 1;
   const map = (pos: number) => (pos === first.from ? codeStart : changes.mapPos(pos, -1));
   return { changes, range: EditorSelection.range(map(range.anchor), map(range.head)) };
 }
@@ -66,28 +66,120 @@ function inCode(state: EditorState, tree: Tree, range: SelectionRange): boolean 
   return false;
 }
 
-export const codeBlockCommand = defineCommand({
-  run: (state) => {
-    const tree = treeForSelection(state);
-    const done = new Set<number>();
-    const result = state.changeByRange((range) => {
-      const block = fencedAt(tree, range);
-      if (block) {
-        if (done.has(block.from)) return { range };
-        done.add(block.from);
-        const changes = state.changes(unfence(state, block));
+/** A fenced block's info string, such as `js`, or nothing. */
+function infoOf(state: EditorState, block: SyntaxNode): string {
+  const info = block.getChild("CodeInfo");
+  return info ? state.sliceDoc(info.from, info.to) : "";
+}
+
+/** The change that gives a fenced block another info string. */
+function setInfo(block: SyntaxNode, info: string): ChangeSpec {
+  const current = block.getChild("CodeInfo");
+  if (current) return { from: current.from, to: current.to, insert: info };
+  return { from: block.firstChild!.to, insert: info };
+}
+
+/**
+ * A fence command. With no info string it's codeBlock: it fences the
+ * touched lines, or takes any fence off. With one, such as `mermaid`, it
+ * takes off only a fence with that info, and gives another fence that info.
+ */
+export function fenceCommand(info = ""): MarkdownCommand {
+  return defineCommand({
+    run: (state) => {
+      const tree = treeForSelection(state);
+      const done = new Set<number>();
+      const result = state.changeByRange((range) => {
+        const block = fencedAt(tree, range);
+        if (block) {
+          if (done.has(block.from)) return { range };
+          done.add(block.from);
+          const own = info === "" || infoOf(state, block) === info;
+          const changes = state.changes(own ? unfence(state, block) : setInfo(block, info));
+          return { changes, range: range.map(changes, 1) };
+        }
+        if (inCode(state, tree, range)) return { range };
+        return fence(state, range, info);
+      });
+      return result.changes.empty ? null : result;
+    },
+    isActive: (state) => {
+      const tree = treeUpTo(state, state.doc.lineAt(state.selection.main.head).to);
+      const block = fencedAt(tree, state.selection.main);
+      return block !== null && (info === "" || infoOf(state, block) === info);
+    },
+  });
+}
+
+export const codeBlockCommand = fenceCommand();
+
+// ── A host's own blocks ─────────────────────────────────────────────────────
+
+/**
+ * The block around a line: a header line, like a callout's `> [!NOTE]`, and
+ * the lines after it that start with the prefix. Null if the line isn't in one.
+ */
+function blockAround(state: EditorState, line: Line, header: string, prefix: string): { header: Line; last: Line } | null {
+  const mark = prefix.trimEnd();
+  const isHeader = (l: Line) => l.text.trimEnd() === header.trimEnd();
+  let top: Line | null = null;
+  for (let n = line.number; n >= 1; n--) {
+    const at = state.doc.line(n);
+    if (isHeader(at)) {
+      top = at;
+      break;
+    }
+    if (!at.text.startsWith(mark)) return null;
+  }
+  if (!top) return null;
+  let last = top;
+  while (last.number < state.doc.lines) {
+    const next = state.doc.line(last.number + 1);
+    if (!next.text.startsWith(mark) || isHeader(next)) break;
+    last = next;
+  }
+  return { header: top, last };
+}
+
+/**
+ * A command for a host's own block, such as a callout: a header line, then
+ * every line with a prefix. It wraps the touched lines, and in such a block
+ * takes the header and prefixes off.
+ */
+export function blockCommand({ header, prefix }: { header: string; prefix: string }): MarkdownCommand {
+  if (!header.trim()) throw new RangeError('A block needs a header line, like "> [!NOTE]".');
+  const mark = prefix.trimEnd();
+  return defineCommand({
+    run: (state) => {
+      const done = new Set<number>();
+      const result = state.changeByRange((range) => {
+        const found = blockAround(state, state.doc.lineAt(range.head), header, prefix);
+        if (found) {
+          if (done.has(found.header.from)) return { range };
+          done.add(found.header.from);
+          const specs: ChangeSpec[] = [{ from: found.header.from, to: Math.min(found.header.to + 1, state.doc.length) }];
+          for (let n = found.header.number + 1; n <= found.last.number; n++) {
+            const line = state.doc.line(n);
+            specs.push({ from: line.from, to: line.from + (line.text.startsWith(prefix) ? prefix.length : mark.length) });
+          }
+          const changes = state.changes(specs);
+          return { changes, range: range.map(changes, 1) };
+        }
+        const { first, last } = lineSpan(state, range);
+        const specs: ChangeSpec[] = [{ from: first.from, insert: header + state.lineBreak }];
+        for (let n = first.number; n <= last.number; n++) {
+          const line = state.doc.line(n);
+          // A blank line stays in the block with the bare marker.
+          specs.push({ from: line.from, insert: line.text.trim() === "" ? mark : prefix });
+        }
+        const changes = state.changes(specs);
         return { changes, range: range.map(changes, 1) };
-      }
-      if (inCode(state, tree, range)) return { range };
-      return fence(state, range);
-    });
-    return result.changes.empty ? null : result;
-  },
-  isActive: (state) => {
-    const tree = treeUpTo(state, state.doc.lineAt(state.selection.main.head).to);
-    return fencedAt(tree, state.selection.main) !== null;
-  },
-});
+      });
+      return result.changes.empty ? null : result;
+    },
+    isActive: (state) => blockAround(state, state.doc.lineAt(state.selection.main.head), header, prefix) !== null,
+  });
+}
 
 // ── Inserting blocks ────────────────────────────────────────────────────────
 
