@@ -1,5 +1,11 @@
 # @netherstone/nethermark
 
+## 0.1.2
+
+### Patch Changes
+
+- 05850cc: Publish with a provenance attestation.
+
 ## 0.1.1
 
 ### Patch Changes
