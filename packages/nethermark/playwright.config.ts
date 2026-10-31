@@ -19,5 +19,8 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    // Phones: every spec, on touch, at phone width. Android runs on Chromium, iPhone on WebKit.
+    { name: "android", use: { ...devices["Pixel 9"] } },
+    { name: "iphone", use: { ...devices["iPhone 16"] } },
   ],
 });

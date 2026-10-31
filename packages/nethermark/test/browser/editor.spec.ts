@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { devices, expect, test, type Page } from "@playwright/test";
 import { themes } from "../../src/theme/index.js";
 
 type Options = Parameters<Window["create"]>[0];
@@ -115,6 +115,8 @@ test("Enter continues a list, Tab nests it, and outside lists Tab moves focus on
   await page.locator(".cm-content").click();
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
+  // On Android, CodeMirror finishes Enter after the browser's own edit lands, so wait for it.
+  await expect.poll(() => value(page)).toBe("- a\n- ");
   await page.keyboard.type("b");
   await page.keyboard.press("Tab");
   expect(await value(page)).toBe("- a\n  - b");
@@ -181,14 +183,19 @@ test("destroy takes it all out of the page", async ({ page }) => {
   await expect(page.locator(".nme-root")).toHaveCount(0);
 });
 
-test("a host's own syntax gets a command, a toolbar button and a pressed state", async ({ page }) => {
-  await create(page, { doc: "word", highlight: true });
-  const button = page.locator('.nme-toolbar > .nme-button[aria-label="Highlight"]');
-  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
-  await button.click();
-  expect(await value(page)).toBe("==word==");
-  await expect(button).toHaveAttribute("aria-pressed", "true");
-  await button.click();
-  expect(await value(page)).toBe("word");
-  await expect(button).toHaveAttribute("aria-pressed", "false");
+test.describe("with every button on the bar", () => {
+  // A desktop's width: on phones, the end of the bar is in More.
+  test.use({ viewport: devices["Desktop Chrome"].viewport });
+
+  test("a host's own syntax gets a command, a toolbar button and a pressed state", async ({ page }) => {
+    await create(page, { doc: "word", highlight: true });
+    const button = page.locator('.nme-toolbar > .nme-button[aria-label="Highlight"]');
+    await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
+    await button.click();
+    expect(await value(page)).toBe("==word==");
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await button.click();
+    expect(await value(page)).toBe("word");
+    await expect(button).toHaveAttribute("aria-pressed", "false");
+  });
 });

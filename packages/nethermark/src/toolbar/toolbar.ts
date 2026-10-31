@@ -63,11 +63,17 @@ class Menu {
     trigger.setAttribute("aria-haspopup", "menu");
     trigger.setAttribute("aria-expanded", "false");
     trigger.setAttribute("aria-controls", this.popup.id);
-    trigger.addEventListener("click", () => (this.isOpen ? this.close(true) : this.open()));
+    // A click with no detail came from the keyboard: only then does focus move into the menu.
+    // A tap or a mouse click leaves focus, and the selection, in the editor.
+    trigger.addEventListener("click", (event) => {
+      const fromKeys = event.detail === 0;
+      if (this.isOpen) this.close(fromKeys);
+      else this.open(0, fromKeys);
+    });
     trigger.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
-        this.open(event.key === "ArrowUp" ? -1 : 0);
+        this.open(event.key === "ArrowUp" ? -1 : 0, true);
       }
     });
     this.popup.addEventListener("keydown", (event) => this.onKey(event));
@@ -115,21 +121,55 @@ class Menu {
     }
   }
 
-  open(at = 0): void {
+  open(at: number, focus: boolean): void {
     if (this.entries.length === 0) return;
     this.toolbar.closeMenus(this);
     this.popup.hidden = false;
     this.trigger.setAttribute("aria-expanded", "true");
     this.toolbar.watchOutside(true);
-    this.focusEntry(at < 0 ? this.enabled().length - 1 : 0);
+    this.place();
+    if (focus) this.focusEntry(at < 0 ? this.enabled().length - 1 : 0);
   }
 
-  close(focusTrigger: boolean): void {
-    if (!this.isOpen) return;
+  /**
+   * Keeps the open menu on screen: it lines up with whichever side of its
+   * button has more room, and scrolls when it's taller than the space below,
+   * which on a phone ends at the on-screen keyboard.
+   */
+  private place(): void {
+    const popup = this.popup;
+    const win = popup.ownerDocument.defaultView;
+    if (!win) return;
+    const visible = win.visualViewport;
+    const left = visible?.offsetLeft ?? 0;
+    const top = visible?.offsetTop ?? 0;
+    const right = left + (visible?.width ?? win.innerWidth);
+    const bottom = top + (visible?.height ?? win.innerHeight);
+    const button = this.trigger.getBoundingClientRect();
+    const rtl = win.getComputedStyle(popup).direction === "rtl";
+    // By default the menu lines up with its button's end edge and grows toward the start.
+    const roomToStart = rtl ? right - button.left : button.right - left;
+    const roomToEnd = rtl ? button.right - left : right - button.left;
+    if (roomToEnd > roomToStart) popup.dataset.align = "start";
+    else delete popup.dataset.align;
+    popup.style.setProperty("--nme-menu-max-height", `${Math.max(0, bottom - button.bottom)}px`);
+  }
+
+  /** Shows a menu again after the bar was measured, unless its button is gone into More or its items are. */
+  reopen(): void {
+    this.popup.hidden = false;
+    if (this.entries.length === 0 || this.trigger.closest("[hidden]")) this.close(false);
+    else this.place();
+  }
+
+  /** Closes the menu, and says whether it was open. */
+  close(focusTrigger: boolean): boolean {
+    if (!this.isOpen) return false;
     this.popup.hidden = true;
     this.trigger.setAttribute("aria-expanded", "false");
     this.toolbar.watchOutside(false);
     if (focusTrigger) this.trigger.focus();
+    return true;
   }
 
   private enabled(): HTMLButtonElement[] {
@@ -168,6 +208,8 @@ class ToolbarView {
   private readonly buttons: Entry[] = [];
   private readonly resize: ResizeObserver;
   private current: HTMLButtonElement | null = null;
+  /** The label shown while a finger or pen presses a bar button, where there's no hover. */
+  private readonly tip: HTMLDivElement;
   private theme: Theme | null = null;
   private readonly outside = (event: Event) => {
     if (!this.dom.contains(event.target as Node)) this.closeMenus(null);
@@ -195,6 +237,21 @@ class ToolbarView {
     this.dom.setAttribute("role", "toolbar");
     this.dom.setAttribute("aria-label", "Formatting");
     this.dom.addEventListener("keydown", (event) => this.onKey(event));
+    // Keeps the editor's focus and selection, and a phone's keyboard up, while pressing any button.
+    this.dom.addEventListener("mousedown", (event) => {
+      if ((event.target as Element).closest("button")) event.preventDefault();
+    });
+    this.tip = document.createElement("div");
+    this.tip.className = "nme-tooltip";
+    // The buttons carry their own labels for assistive tech; this is only what a finger hides.
+    this.tip.setAttribute("aria-hidden", "true");
+    this.tip.hidden = true;
+    this.dom.addEventListener("pointerdown", (event) => this.press(event));
+    for (const end of ["pointerup", "pointercancel"] as const) this.dom.addEventListener(end, () => (this.tip.hidden = true));
+    // A long press shows the label, not the browser's own menu for the button.
+    this.dom.addEventListener("contextmenu", (event) => {
+      if ((event.target as Element).closest("button")) event.preventDefault();
+    });
     this.dom.addEventListener("focusin", (event) => {
       const target = event.target as HTMLElement;
       if (this.controls().includes(target as HTMLButtonElement)) this.setCurrent(target as HTMLButtonElement);
@@ -212,7 +269,7 @@ class ToolbarView {
     this.moreAnchor.className = this.classOf("more");
     this.more = new Menu(moreButton, this);
     this.moreAnchor.append(moreButton, this.more.popup);
-    this.dom.append(this.moreAnchor);
+    this.dom.append(this.moreAnchor, this.tip);
 
     this.resize = new ResizeObserver(() => this.layout());
     this.resize.observe(this.dom);
@@ -248,11 +305,31 @@ class ToolbarView {
       return { kind: "menu", el: anchor, item, menu };
     }
     const el = this.barButton(item.icon, item.label);
-    // Keeps the editor's focus and selection while clicking.
-    el.addEventListener("mousedown", (event) => event.preventDefault());
     el.addEventListener("click", () => this.run(item));
     this.buttons.push({ el, button: item });
     return { kind: "button", el, item };
+  }
+
+  /**
+   * Shows a bar button's tooltip text while a finger or pen is down on it,
+   * above the button when there's room on screen, so the finger doesn't hide it.
+   */
+  private press(event: PointerEvent): void {
+    if (event.pointerType === "mouse") return;
+    const button = (event.target as Element).closest("button");
+    if (!button || !this.dom.contains(button) || button.closest(".nme-menu") || !button.title) return;
+    const tip = this.tip;
+    tip.textContent = button.title;
+    tip.hidden = false;
+    const bar = this.dom.getBoundingClientRect();
+    const at = button.getBoundingClientRect();
+    const size = tip.getBoundingClientRect();
+    const top = this.dom.ownerDocument.defaultView?.visualViewport?.offsetTop ?? 0;
+    const above = at.top - size.height >= top;
+    tip.dataset.side = above ? "above" : "below";
+    const x = Math.min(Math.max(0, at.left + at.width / 2 - size.width / 2 - bar.left), Math.max(0, bar.width - size.width));
+    tip.style.setProperty("--nme-tooltip-x", `${x}px`);
+    tip.style.setProperty("--nme-tooltip-y", `${(above ? at.top : at.bottom) - bar.top}px`);
   }
 
   /** A part's class, with the host's classes for it. */
@@ -323,6 +400,11 @@ class ToolbarView {
    * the right until the bar fits its width. It never wraps or scrolls.
    */
   layout(): void {
+    // An open menu or the tooltip would count toward the bar's width: they're
+    // out of the way while it's measured, in the same frame, and back after.
+    const open = this.menus().filter((menu) => menu.isOpen);
+    for (const menu of open) menu.popup.hidden = true;
+    this.tip.hidden = true;
     for (const slot of this.slots) slot.el.hidden = slot.el.dataset.context === "off";
     this.moreAnchor.hidden = this.inMore.length === 0;
     const overflow: Slot[] = [];
@@ -345,8 +427,14 @@ class ToolbarView {
 
     const items = overflow.map((slot): ToolbarItem => (slot.kind === "separator" ? "separator" : slot.item));
     this.more.render([...items, "separator", ...this.inMore]);
+    for (const menu of open) menu.reopen();
     this.syncButtons(this.view.state);
     this.updateTabStops();
+  }
+
+  /** The bar's menus, the More menu last. */
+  private menus(): Menu[] {
+    return [...this.slots.flatMap((slot) => (slot.kind === "menu" ? [slot.menu] : [])), this.more];
   }
 
   /** The bar's buttons that can take focus, in order. */
@@ -391,10 +479,13 @@ class ToolbarView {
     }
   }
 
-  closeMenus(except: Menu | null): void {
-    for (const menu of [...this.slots.flatMap((slot) => (slot.kind === "menu" ? [slot.menu] : [])), this.more]) {
-      if (menu !== except) menu.close(false);
+  /** Closes every open menu but one, and says whether any was open. */
+  closeMenus(except: Menu | null): boolean {
+    let closed = false;
+    for (const menu of this.menus()) {
+      if (menu !== except && menu.close(false)) closed = true;
     }
+    return closed;
   }
 
   /** The document or shadow root the editor is in, which CodeMirror types loosely. */
@@ -426,13 +517,18 @@ class ToolbarView {
 
 /**
  * Builds a toolbar for an editor, on its own: the editor keeps the toolbar's
- * pressed state current, and Alt-F10 moves focus to it. Escape goes back.
+ * pressed state current, and Alt-F10 moves focus to it. Escape goes back,
+ * or closes a menu that's open.
  */
 export function createToolbar(view: EditorView, items: readonly ToolbarItem[] = defaultToolbar): Toolbar {
   const toolbar = new ToolbarView(view, items);
   const compartment = new Compartment();
   const plugin = ViewPlugin.define(() => ({ update: (update) => toolbar.update(update) }));
-  const focusKey = keymap.of([{ key: "Alt-F10", run: () => (toolbar.focus(), true) }]);
+  const focusKey = keymap.of([
+    { key: "Alt-F10", run: () => (toolbar.focus(), true) },
+    // A menu opened by a tap or click leaves focus in the editor, so Escape there closes it.
+    { key: "Escape", run: () => toolbar.closeMenus(null) },
+  ]);
   view.dispatch({ effects: StateEffect.appendConfig.of(compartment.of([plugin, focusKey])) });
   return {
     dom: toolbar.dom,

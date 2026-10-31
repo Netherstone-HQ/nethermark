@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { devices, expect, test, type Page } from "@playwright/test";
 import { themes } from "../../src/theme/index.js";
 
 function rgb(hex: string): string {
@@ -74,21 +74,26 @@ test("Alt-F10 moves focus to the toolbar and Escape goes back", async ({ page })
   await expect(page.locator(".cm-editor")).toHaveClass(/cm-focused/);
 });
 
-test("the More menu is a real menu with arrow keys", async ({ page }) => {
-  await mount(page, "text");
-  const more = page.locator(".nme-more > .nme-button");
-  await expect(more).toHaveAttribute("aria-haspopup", "menu");
-  await more.focus();
-  await page.keyboard.press("ArrowDown");
-  await expect(more).toHaveAttribute("aria-expanded", "true");
-  const items = page.locator(".nme-more .nme-menu-item");
-  await expect(items.first()).toBeFocused();
-  await expect(items.first()).toHaveText("Heading 4");
-  await page.keyboard.press("ArrowDown");
-  await expect(items.nth(1)).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(more).toHaveAttribute("aria-expanded", "false");
-  await expect(more).toBeFocused();
+test.describe("with every button on the bar", () => {
+  // A desktop's width: on phones, the end of the bar is in More.
+  test.use({ viewport: devices["Desktop Chrome"].viewport });
+
+  test("the More menu is a real menu with arrow keys", async ({ page }) => {
+    await mount(page, "text");
+    const more = page.locator(".nme-more > .nme-button");
+    await expect(more).toHaveAttribute("aria-haspopup", "menu");
+    await more.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+    const items = page.locator(".nme-more .nme-menu-item");
+    await expect(items.first()).toBeFocused();
+    await expect(items.first()).toHaveText("Heading 4");
+    await page.keyboard.press("ArrowDown");
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await expect(more).toBeFocused();
+  });
 });
 
 test("running a menu item closes the menu and edits the doc", async ({ page }) => {
@@ -119,15 +124,20 @@ test("items that don't fit move into More from the right, never a second row", a
   await expect(button(page, "Horizontal rule")).toBeVisible();
 });
 
-test("the table menu shows only in a table", async ({ page }) => {
-  await mount(page, "text\n\n| a | b |\n| - | - |");
-  const menu = page.locator('.nme-menu-anchor > .nme-button[aria-label="Table"]');
-  await expect(menu).toBeHidden();
-  await cursorAt(page, 9);
-  await expect(menu).toBeVisible();
-  await menu.click();
-  await page.locator(".nme-menu-item", { hasText: "Add row below" }).click();
-  expect(await doc(page)).toBe("text\n\n| a | b |\n| - | - |\n|  |  |");
+test.describe("with every button on the bar", () => {
+  // A desktop's width: on phones, the end of the bar is in More.
+  test.use({ viewport: devices["Desktop Chrome"].viewport });
+
+  test("the table menu shows only in a table", async ({ page }) => {
+    await mount(page, "text\n\n| a | b |\n| - | - |");
+    const menu = page.locator('.nme-menu-anchor > .nme-button[aria-label="Table"]');
+    await expect(menu).toBeHidden();
+    await cursorAt(page, 9);
+    await expect(menu).toBeVisible();
+    await menu.click();
+    await page.locator(".nme-menu-item", { hasText: "Add row below" }).click();
+    expect(await doc(page)).toBe("text\n\n| a | b |\n| - | - |\n|  |  |");
+  });
 });
 
 test("buttons are disabled while the editor is read-only", async ({ page }) => {

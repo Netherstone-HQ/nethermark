@@ -216,7 +216,7 @@ Bold, Italic, Strikethrough, Inline code | Heading 1, Heading 2, Heading 3 | Bul
 
 Headings 4 to 6 always sit in the More menu. The Table menu, with row, column and alignment commands, appears only while the cursor is in a table. Items that don't fit move into More from the right, measured with a `ResizeObserver`.
 
-Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pass. Tooltips show the label and the bound keys for the current platform.
+Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pass. Tooltips show the label and the bound keys for the current platform. On touch screens, where there's no hover, the same text shows above a button while it's pressed.
 
 `defaultToolbar` is exported for reordering or extending. Item shapes:
 
@@ -326,11 +326,13 @@ createMarkdownEditor({ parent, classNames: { strong: "font-black", "line-h1": "t
 - Alt-F10 moves focus from the editor to the toolbar. Escape moves it back.
 - The More menu is a menu with `aria-expanded` and arrow keys.
 - Focus rings come from the `focusRing` token and are never removed.
-- Clicking a button runs its command and returns focus to the editor.
+- Clicking or tapping a button runs its command and keeps focus and the selection in the editor, so a phone's keyboard stays up.
+- A menu opened by a click or tap leaves focus in the editor, and Escape there closes it. Opened from the keyboard, focus moves into the menu.
+- Open menus stay on screen: they open toward the side with more room and scroll when taller than the space below, down to the on-screen keyboard.
 
 ## Browsers
 
-Tested with Playwright in Chromium, Firefox and WebKit.
+Tested with Playwright in Chromium, Firefox and WebKit, and on emulated phones: Android on Chromium and iPhone on WebKit.
 
 ## License
 
