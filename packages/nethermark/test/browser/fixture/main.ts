@@ -6,6 +6,7 @@ import {
   createToolbar,
   defaultToolbar,
   defineCommand,
+  type ToolbarItem,
   themes,
   type MarkdownEditor,
   type Toolbar,
@@ -14,7 +15,16 @@ import { formattingKeymap } from "../../../src/keymap.js";
 import { highlightSyntax } from "../../highlight-syntax.js";
 import { editorStyles, themeExtension } from "../../../src/styles/index.js";
 
-type Options = { theme?: keyof typeof themes; toolbar?: boolean; readOnly?: boolean; width?: string };
+type Options = {
+  theme?: keyof typeof themes;
+  toolbar?: boolean;
+  readOnly?: boolean;
+  width?: string;
+  /** Moves the table menu to the start of the bar. */
+  tableFirst?: boolean;
+};
+
+const isTableMenu = (item: ToolbarItem) => typeof item === "object" && "menu" in item && item.label === "Table";
 
 /**
  * The page tests drive: `mount` builds an editor in #app from a doc, with a
@@ -28,7 +38,7 @@ declare global {
   }
 }
 
-window.mount = (doc, { theme = "light", toolbar = false, readOnly = false, width } = {}) => {
+window.mount = (doc, { theme = "light", toolbar = false, readOnly = false, width, tableFirst = false } = {}) => {
   window.formatBar?.destroy();
   window.view?.destroy();
   const app = document.getElementById("app")!;
@@ -49,7 +59,10 @@ window.mount = (doc, { theme = "light", toolbar = false, readOnly = false, width
       ],
     }),
   });
-  window.formatBar = toolbar ? createToolbar(window.view) : undefined;
+  const items = tableFirst
+    ? [...defaultToolbar.filter(isTableMenu), ...defaultToolbar.filter((item) => !isTableMenu(item))]
+    : defaultToolbar;
+  window.formatBar = toolbar ? createToolbar(window.view, items) : undefined;
   if (window.formatBar) app.prepend(window.formatBar.dom);
 };
 

@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { devices, expect, test, type Page } from "@playwright/test";
 import { themes } from "../../src/theme/index.js";
+import { mod } from "./keys.js";
 
 type Options = Parameters<Window["create"]>[0];
 
@@ -37,7 +38,7 @@ test("onChange fires once per change, and getValue and setValue round-trip", asy
   expect(await value(page)).toBe("new");
   // One undo step brings the old doc back.
   await page.locator(".cm-content").click();
-  await page.keyboard.press("ControlOrMeta+z");
+  await page.keyboard.press(`${await mod(page)}+z`);
   expect(await value(page)).toBe("abcd");
 });
 
@@ -77,7 +78,7 @@ test("setTheme swaps the theme and keeps the cursor and history", async ({ page 
   await expect(page.locator(".cm-editor")).toHaveCSS("background-color", rgb(themes.dark.background));
   await expect(page.locator(".nme-toolbar")).toHaveCSS("background-color", rgb(themes.dark.toolbarBackground));
   expect(await page.evaluate(() => window.view!.state.selection.main.head)).toBe(head);
-  await page.locator(".cm-content").press("ControlOrMeta+z");
+  await page.locator(".cm-content").press(`${await mod(page)}+z`);
   expect(await value(page)).toBe("abc");
 });
 
@@ -99,7 +100,7 @@ test("setReadOnly and setShortcuts change the editor in place", async ({ page })
   await page.evaluate(() => window.editor!.setShortcuts({ bold: ["Mod-Shift-b"] }));
   await expect(bold).toHaveAttribute("title", /^Bold \((Ctrl\+Shift\+B|⇧⌘B)\)$/);
   await page.locator(".cm-content").click();
-  await page.keyboard.press("ControlOrMeta+Shift+b");
+  await page.keyboard.press(`${await mod(page)}+Shift+b`);
   expect(await value(page)).toBe("**word**");
 });
 
@@ -115,6 +116,8 @@ test("Enter continues a list, Tab nests it, and outside lists Tab moves focus on
   await page.locator(".cm-content").click();
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
+  // On Android, CodeMirror finishes Enter after the browser's own edit lands, so wait for it.
+  await expect.poll(() => value(page)).toBe("- a\n- ");
   await page.keyboard.type("b");
   await page.keyboard.press("Tab");
   expect(await value(page)).toBe("- a\n  - b");
@@ -181,14 +184,19 @@ test("destroy takes it all out of the page", async ({ page }) => {
   await expect(page.locator(".nme-root")).toHaveCount(0);
 });
 
-test("a host's own syntax gets a command, a toolbar button and a pressed state", async ({ page }) => {
-  await create(page, { doc: "word", highlight: true });
-  const button = page.locator('.nme-toolbar > .nme-button[aria-label="Highlight"]');
-  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
-  await button.click();
-  expect(await value(page)).toBe("==word==");
-  await expect(button).toHaveAttribute("aria-pressed", "true");
-  await button.click();
-  expect(await value(page)).toBe("word");
-  await expect(button).toHaveAttribute("aria-pressed", "false");
+test.describe("with every button on the bar", () => {
+  // A desktop's width: on phones, the end of the bar is in More.
+  test.use({ viewport: devices["Desktop Chrome"].viewport });
+
+  test("a host's own syntax gets a command, a toolbar button and a pressed state", async ({ page }) => {
+    await create(page, { doc: "word", highlight: true });
+    const button = page.locator('.nme-toolbar > .nme-button[aria-label="Highlight"]');
+    await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
+    await button.click();
+    expect(await value(page)).toBe("==word==");
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await button.click();
+    expect(await value(page)).toBe("word");
+    await expect(button).toHaveAttribute("aria-pressed", "false");
+  });
 });

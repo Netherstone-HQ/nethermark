@@ -8,6 +8,7 @@ const ring = `${token("focusRingWidth")} solid ${token("focusRing")}`;
  */
 const css = `@layer nme {
   .nme-toolbar {
+    position: relative;
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -20,6 +21,11 @@ const css = `@layer nme {
     font-family: ${token("fontFamily")};
     font-size: ${token("fontSize")};
     color-scheme: var(--nme-color-scheme);
+    /* A long press on a button shows its label, not a text selection or the browser's callout. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
   }
   .nme-toolbar [hidden] { display: none; }
   .nme-button, .nme-menu-item {
@@ -40,7 +46,10 @@ const css = `@layer nme {
     min-width: ${token("buttonSize")};
     padding: 0 ${token("gap")};
   }
-  .nme-button:hover, .nme-menu-item:hover { background: ${token("buttonHover")}; }
+  /* Only where there's hover: on touch screens a tapped button would stay lit. */
+  @media (hover: hover) {
+    .nme-button:hover, .nme-menu-item:hover { background: ${token("buttonHover")}; }
+  }
   .nme-button[aria-pressed="true"], .nme-button[aria-expanded="true"], .nme-menu-item[aria-checked="true"] {
     background: ${token("buttonPressed")};
     color: ${token("buttonPressedForeground")};
@@ -65,12 +74,31 @@ const css = `@layer nme {
     display: flex;
     flex-direction: column;
     gap: ${token("gap")};
+    box-sizing: border-box;
     min-width: max-content;
     padding: ${token("gap")};
     background: ${token("toolbarBackground")};
     border: ${token("borderWidth")} solid ${token("border")};
     border-radius: ${token("radius")};
+    max-height: var(--nme-menu-max-height, none);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
+  .nme-menu[data-align="start"] { inset-inline-end: auto; inset-inline-start: 0; }
+  .nme-tooltip {
+    position: absolute;
+    left: var(--nme-tooltip-x, 0);
+    top: var(--nme-tooltip-y, 0);
+    z-index: 2;
+    padding: ${token("gap")};
+    background: ${token("foreground")};
+    color: ${token("background")};
+    border-radius: ${token("radius")};
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .nme-tooltip[data-side="above"] { transform: translateY(calc(-100% - ${token("gap")})); }
+  .nme-tooltip[data-side="below"] { margin-top: ${token("gap")}; }
   .nme-menu-item { padding: 0 ${token("gap")}; text-align: start; white-space: nowrap; }
   .nme-menu-separator { height: ${token("borderWidth")}; background: ${token("separator")}; }
 }`;
