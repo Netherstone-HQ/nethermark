@@ -28,7 +28,11 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # pnpm publishes through npm with a packed tarball, which drops the
+      # package's publishConfig.provenance, so npm gets it from the environment.
       - run: pnpm release
+        env:
+          NPM_CONFIG_PROVENANCE: "true"
       - run: git push origin --tags
       - run: node scripts/github-releases.mjs
         env:
