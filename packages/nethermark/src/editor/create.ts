@@ -4,6 +4,7 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import { classFor } from "../classes.js";
 import { commandNamed } from "../commands/registry.js";
 import { formattingKeymap, type Shortcuts } from "../keymap.js";
+import { labelsFacet, type Labels } from "../labels.js";
 import { themeFacet } from "../styles/index.js";
 import { themes } from "../theme/index.js";
 import { themeStyle } from "../theme/theme.js";
@@ -33,6 +34,8 @@ export type MarkdownEditor = {
   setReadOnly(on: boolean): void;
   /** Changes the keys; commands left out keep their defaults. */
   setShortcuts(shortcuts: Shortcuts): void;
+  /** Replaces the labels; ones left out go back to their defaults. */
+  setLabels(labels: Labels): void;
   /** Takes the editor and toolbar out of the page. */
   destroy(): void;
 };
@@ -88,6 +91,7 @@ export function createMarkdownEditor(options: CreateMarkdownEditorOptions): Mark
     setReadOnly: (on) => view.dispatch({ effects: compartments.readOnly.reconfigure(EditorState.readOnly.of(on)) }),
     setShortcuts: (shortcuts) =>
       view.dispatch({ effects: compartments.shortcuts.reconfigure(formattingKeymap(shortcuts, options.commands ?? {})) }),
+    setLabels: (labels) => view.dispatch({ effects: compartments.labels.reconfigure(labelsFacet.of(labels)) }),
     destroy: () => {
       toolbar?.destroy();
       view.destroy();

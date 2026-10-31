@@ -6,6 +6,7 @@ import {
   createToolbar,
   defaultToolbar,
   defineCommand,
+  type Labels,
   type ToolbarItem,
   themes,
   type MarkdownEditor,
@@ -82,6 +83,7 @@ type CreateOptions = {
   highlight?: boolean;
   paste?: "sync" | "async" | "none";
   drop?: "sync" | "async";
+  labels?: Labels;
 };
 
 declare global {
@@ -91,6 +93,7 @@ declare global {
     changes: string[];
     /** Settles the pending async hook with Markdown. */
     settle?: (markdown: string) => void;
+    /** What the last hook got, with files as their names. */
     hookInput?: unknown;
     presets: typeof themes;
   }
@@ -108,8 +111,8 @@ const shout = defineCommand({
 
 function hook(kind: "sync" | "async" | "none" | undefined, markdown: string) {
   if (!kind) return undefined;
-  return (input: unknown) => {
-    window.hookInput = input;
+  return (input: { files?: readonly File[] }) => {
+    window.hookInput = { ...input, ...(input.files && { files: input.files.map((file) => file.name) }) };
     if (kind === "none") return undefined;
     if (kind === "sync") return markdown;
     return new Promise<string>((resolve) => (window.settle = resolve));
@@ -144,6 +147,7 @@ window.create = (options = {}) => {
     ...(options.placeholder && { placeholder: options.placeholder }),
     ...(options.ariaLabel && { ariaLabel: options.ariaLabel }),
     ...(options.classNames && { classNames: options.classNames }),
+    ...(options.labels && { labels: options.labels }),
     onChange: (doc) => window.changes.push(doc),
     ...(options.paste && { onPaste: hook(options.paste, "**pasted**") }),
     ...(options.drop && { onDrop: hook(options.drop, "![](picture.png)") }),

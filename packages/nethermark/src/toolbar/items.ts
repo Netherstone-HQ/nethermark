@@ -3,6 +3,7 @@ import type { MarkdownCommand } from "../commands/command.js";
 import type { CommandName } from "../commands/index.js";
 import { commandNamed } from "../commands/registry.js";
 import { inTable } from "../commands/tables.js";
+import { defaultLabels, type LabelName } from "../labels.js";
 import { icons } from "./icons.js";
 
 /**
@@ -46,54 +47,68 @@ export function commandOf(state: EditorState, button: ToolbarButton): MarkdownCo
 
 export const isMenu = (item: ToolbarItem): item is ToolbarMenu => typeof item === "object" && "menu" in item;
 
-const button = (command: CommandName, icon: string, label: string, inMore?: boolean): ToolbarButton =>
-  defineToolbarItem({ command, icon, label, ...(inMore && { inMore }) });
+/** The built-in items, with the label each one shows, so the `labels` option reaches them. */
+const builtInLabels = new WeakMap<ToolbarButton | ToolbarMenu, LabelName>();
+
+/** The label an item shows: a built-in item's from the editor's labels, a host's own item's as given. */
+export function labelOf(item: ToolbarButton | ToolbarMenu, labels: Readonly<Record<LabelName, string>>): string {
+  const name = builtInLabels.get(item);
+  return name ? labels[name] : item.label;
+}
+
+function builtIn<T extends ToolbarButton | ToolbarMenu>(name: LabelName, item: T): T {
+  builtInLabels.set(item, name);
+  return item;
+}
+
+const button = (command: CommandName & LabelName, icon: string, inMore?: boolean): ToolbarButton =>
+  builtIn(command, defineToolbarItem({ command, icon, label: defaultLabels[command], ...(inMore && { inMore }) }));
 
 /** The row, column and alignment commands, shown while the cursor is in a table. */
-export const tableMenu: ToolbarMenu = defineToolbarItem({
+export const tableMenu: ToolbarMenu = builtIn("tableMenu", defineToolbarItem({
   icon: icons.tableMenu,
-  label: "Table",
+  label: defaultLabels.tableMenu,
   visible: inTable,
   menu: [
-    button("addRowAbove", "↑", "Add row above"),
-    button("addRowBelow", "↓", "Add row below"),
-    button("addColumnLeft", "←", "Add column left"),
-    button("addColumnRight", "→", "Add column right"),
+    button("addRowAbove", "↑"),
+    button("addRowBelow", "↓"),
+    button("addColumnLeft", "←"),
+    button("addColumnRight", "→"),
     "separator",
-    button("deleteRow", "−", "Delete row"),
-    button("deleteColumn", "−", "Delete column"),
+    button("deleteRow", "−"),
+    button("deleteColumn", "−"),
     "separator",
-    button("alignColumnLeft", "⇤", "Align left"),
-    button("alignColumnCenter", "↔", "Align center"),
-    button("alignColumnRight", "⇥", "Align right"),
+    button("alignColumnLeft", "⇤"),
+    button("alignColumnCenter", "↔"),
+    button("alignColumnRight", "⇥"),
     "separator",
-    button("formatTable", "⌗", "Format table"),
+    button("formatTable", "⌗"),
   ],
-});
+}));
 
 /** The default toolbar, in order. Headings 4 to 6 always sit in the More menu. */
 export const defaultToolbar: readonly ToolbarItem[] = Object.freeze([
-  button("bold", icons.bold, "Bold"),
-  button("italic", icons.italic, "Italic"),
-  button("strikethrough", icons.strikethrough, "Strikethrough"),
-  button("inlineCode", icons.inlineCode, "Inline code"),
+  button("bold", icons.bold),
+  button("italic", icons.italic),
+  button("strikethrough", icons.strikethrough),
+  button("inlineCode", icons.inlineCode),
   "separator",
-  button("heading1", icons.heading1, "Heading 1"),
-  button("heading2", icons.heading2, "Heading 2"),
-  button("heading3", icons.heading3, "Heading 3"),
+  button("heading1", icons.heading1),
+  button("heading2", icons.heading2),
+  button("heading3", icons.heading3),
   "separator",
-  button("bulletList", icons.bulletList, "Bullet list"),
-  button("orderedList", icons.orderedList, "Numbered list"),
-  button("taskList", icons.taskList, "Task list"),
-  button("quote", icons.quote, "Quote"),
+  button("bulletList", icons.bulletList),
+  button("orderedList", icons.orderedList),
+  button("taskList", icons.taskList),
+  button("quote", icons.quote),
   "separator",
-  button("link", icons.link, "Link"),
-  button("image", icons.image, "Image"),
-  button("codeBlock", icons.codeBlock, "Code block"),
-  button("table", icons.table, "Table"),
+  button("link", icons.link),
+  button("image", icons.image),
+  button("codeBlock", icons.codeBlock),
+  button("table", icons.table),
   tableMenu,
-  button("horizontalRule", icons.horizontalRule, "Horizontal rule"),
-  button("heading4", icons.heading4, "Heading 4", true),
-  button("heading5", icons.heading5, "Heading 5", true),
-  button("heading6", icons.heading6, "Heading 6", true),
+  button("horizontalRule", icons.horizontalRule),
+  button("heading4", icons.heading4, true),
+  button("heading5", icons.heading5, true),
+  button("heading6", icons.heading6, true),
 ]);

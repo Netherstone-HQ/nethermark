@@ -147,7 +147,20 @@ test("pasted HTML goes through onPaste", async ({ page }) => {
   await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
   await pasteHtml(page);
   expect(await value(page)).toBe("x **pasted**");
-  expect(await page.evaluate(() => window.hookInput)).toEqual({ html: "<b>pasted</b>", text: "pasted" });
+  expect(await page.evaluate(() => window.hookInput)).toEqual({ html: "<b>pasted</b>", text: "pasted", files: [] });
+});
+
+test("pasted files go through onPaste", async ({ page }) => {
+  await create(page, { doc: "x ", paste: "sync" });
+  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
+  await page.locator(".cm-content").evaluate((el) => {
+    const files = [new File(["x"], "picture.png", { type: "image/png" })];
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { getData: () => "", types: ["Files"], files } });
+    el.dispatchEvent(event);
+  });
+  expect(await value(page)).toBe("x **pasted**");
+  expect(await page.evaluate(() => window.hookInput)).toEqual({ html: "", text: "", files: ["picture.png"] });
 });
 
 test("an async onPaste result lands where the cursor was, after edits meanwhile", async ({ page }) => {
@@ -176,6 +189,19 @@ test("dropped files go through onDrop with their position", async ({ page }) => 
   });
   expect(await value(page)).toBe("text![](picture.png)");
   expect(await page.evaluate(() => (window.hookInput as { position: number }).position)).toBe(4);
+});
+
+test("labels replace the toolbar's strings, and setLabels changes them later", async ({ page }) => {
+  await create(page, { doc: "x", labels: { toolbar: "Mise en forme", bold: "Gras" } });
+  const toolbar = page.locator(".nme-toolbar");
+  const bold = toolbar.locator("> .nme-button").first();
+  await expect(toolbar).toHaveAttribute("aria-label", "Mise en forme");
+  await expect(bold).toHaveAttribute("aria-label", "Gras");
+  await expect(bold).toHaveAttribute("title", /^Gras \(/);
+  await page.evaluate(() => window.editor!.setLabels({ bold: "Fett" }));
+  await expect(toolbar).toHaveAttribute("aria-label", "Formatting");
+  await expect(bold).toHaveAttribute("aria-label", "Fett");
+  await expect(bold).toHaveAttribute("title", /^Fett \(/);
 });
 
 test("destroy takes it all out of the page", async ({ page }) => {
