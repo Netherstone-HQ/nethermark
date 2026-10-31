@@ -189,7 +189,8 @@ window.createWithPreview = (options = {}) => {
     parent: app,
     doc: options.doc ?? "",
     readOnly: options.readOnly ?? false,
-    toolbar: [...defaultToolbar, "separator", previewButton()],
+    // First, so it stays on the bar at phone width too.
+    toolbar: [previewButton(), "separator", ...defaultToolbar],
   });
   window.view = window.editor.view;
   const lines = (markdown: string) =>
