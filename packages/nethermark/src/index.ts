@@ -3,3 +3,8 @@ export { defineCommand, type CommandDefinition, type MarkdownCommand } from "./c
 export { extendTheme, themes, type Theme } from "./theme/index.js";
 export { createToolbar, type Toolbar } from "./toolbar/toolbar.js";
 export { defaultToolbar, defineToolbarItem, type ToolbarButton, type ToolbarItem, type ToolbarMenu } from "./toolbar/items.js";
+export { createMarkdownEditor, type CreateMarkdownEditorOptions, type MarkdownEditor } from "./editor/create.js";
+export { markdownEditor, type MarkdownEditorOptions, type ThemeOption } from "./editor/editor.js";
+export type { DropHook, PasteHook } from "./editor/paste.js";
+export type { ClassNames, Part } from "./classes.js";
+export type { Shortcuts } from "./keymap.js";
