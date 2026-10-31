@@ -1,5 +1,6 @@
 import { devices, expect, test, type Page } from "@playwright/test";
 import { themes } from "../../src/theme/index.js";
+import { mod } from "./keys.js";
 
 type Options = Parameters<Window["create"]>[0];
 
@@ -37,7 +38,7 @@ test("onChange fires once per change, and getValue and setValue round-trip", asy
   expect(await value(page)).toBe("new");
   // One undo step brings the old doc back.
   await page.locator(".cm-content").click();
-  await page.keyboard.press("ControlOrMeta+z");
+  await page.keyboard.press(`${await mod(page)}+z`);
   expect(await value(page)).toBe("abcd");
 });
 
@@ -77,7 +78,7 @@ test("setTheme swaps the theme and keeps the cursor and history", async ({ page 
   await expect(page.locator(".cm-editor")).toHaveCSS("background-color", rgb(themes.dark.background));
   await expect(page.locator(".nme-toolbar")).toHaveCSS("background-color", rgb(themes.dark.toolbarBackground));
   expect(await page.evaluate(() => window.view!.state.selection.main.head)).toBe(head);
-  await page.locator(".cm-content").press("ControlOrMeta+z");
+  await page.locator(".cm-content").press(`${await mod(page)}+z`);
   expect(await value(page)).toBe("abc");
 });
 
@@ -99,7 +100,7 @@ test("setReadOnly and setShortcuts change the editor in place", async ({ page })
   await page.evaluate(() => window.editor!.setShortcuts({ bold: ["Mod-Shift-b"] }));
   await expect(bold).toHaveAttribute("title", /^Bold \((Ctrl\+Shift\+B|⇧⌘B)\)$/);
   await page.locator(".cm-content").click();
-  await page.keyboard.press("ControlOrMeta+Shift+b");
+  await page.keyboard.press(`${await mod(page)}+Shift+b`);
   expect(await value(page)).toBe("**word**");
 });
 
