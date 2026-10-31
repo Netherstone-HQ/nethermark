@@ -1,9 +1,16 @@
 import { Facet, Prec, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import type { MarkdownCommand } from "./commands/command.js";
 import { commands, type CommandName } from "./commands/index.js";
 
-/** Keys for each command, in CodeMirror's format, or false for none. */
-export type Shortcuts = Partial<Record<CommandName, readonly string[] | false>>;
+/**
+ * Keys for each command, in CodeMirror's format, or false for none. Built-in
+ * commands left out keep their defaults; a host's own commands have none
+ * unless they're given here.
+ */
+export type Shortcuts = { readonly [name in CommandName]?: readonly string[] | false } & {
+  readonly [name: string]: readonly string[] | false | undefined;
+};
 
 /** The keys each command has unless a host changes them. */
 export const defaultShortcuts: Readonly<Record<CommandName, readonly string[]>> = {
@@ -48,18 +55,21 @@ export const defaultShortcuts: Readonly<Record<CommandName, readonly string[]>> 
   clearFormatting: [],
 };
 
-/** The keys each command ends up with: the defaults, with a host's changes on top. */
-export function resolveShortcuts(overrides: Shortcuts = {}): Record<CommandName, readonly string[]> {
-  const resolved = { ...defaultShortcuts };
-  for (const name of Object.keys(overrides) as CommandName[]) {
-    const keys = overrides[name];
+/**
+ * The keys each command ends up with: the defaults, with a host's changes on
+ * top. Names that aren't a built-in or a host's command are left out.
+ */
+export function resolveShortcuts(overrides: Shortcuts = {}, custom: Readonly<Record<string, MarkdownCommand>> = {}): Record<string, readonly string[]> {
+  const resolved: Record<string, readonly string[]> = { ...defaultShortcuts };
+  for (const name of Object.keys(custom)) resolved[name] ??= [];
+  for (const [name, keys] of Object.entries(overrides)) {
     if (keys !== undefined && name in resolved) resolved[name] = keys === false ? [] : keys;
   }
   return resolved;
 }
 
 /** The keys each command has in this editor, for tooltips to show. */
-export const shortcutsFacet = Facet.define<Record<CommandName, readonly string[]>, Record<CommandName, readonly string[]>>({
+export const shortcutsFacet = Facet.define<Record<string, readonly string[]>, Record<string, readonly string[]>>({
   combine: (values) => values[0] ?? { ...defaultShortcuts },
 });
 
@@ -76,14 +86,15 @@ const HANDS_ON = new Set<CommandName>(["indentList", "outdentList", "hardBreak"]
  * browser's own action for their keys, such as a bookmark on Mod-B, from
  * running when the command doesn't apply.
  */
-export function formattingKeymap(overrides?: Shortcuts): Extension {
-  const resolved = resolveShortcuts(overrides);
+export function formattingKeymap(overrides?: Shortcuts, custom: Readonly<Record<string, MarkdownCommand>> = {}): Extension {
+  const resolved = resolveShortcuts(overrides, custom);
+  const all: Readonly<Record<string, MarkdownCommand>> = { ...commands, ...custom };
   return [
     shortcutsFacet.of(resolved),
     Prec.high(
       keymap.of(
-        (Object.keys(resolved) as CommandName[]).flatMap((name) =>
-          resolved[name].map((key) => ({ key, run: commands[name], preventDefault: !HANDS_ON.has(name) })),
+        Object.entries(resolved).flatMap(([name, keys]) =>
+          keys.map((key) => ({ key, run: all[name]!, preventDefault: !HANDS_ON.has(name as CommandName) })),
         ),
       ),
     ),

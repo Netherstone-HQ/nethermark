@@ -1,6 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 import type { MarkdownCommand } from "../commands/command.js";
-import { commands, type CommandName } from "../commands/index.js";
+import type { CommandName } from "../commands/index.js";
+import { commandNamed } from "../commands/registry.js";
 import { inTable } from "../commands/tables.js";
 import { icons } from "./icons.js";
 
@@ -9,7 +10,8 @@ import { icons } from "./icons.js";
  * like `H1`, drawn in the UI font.
  */
 export type ToolbarButton = {
-  readonly command: CommandName | MarkdownCommand;
+  /** A command, or the name of one: built in, or the host's own from the `commands` option. */
+  readonly command: CommandName | (string & {}) | MarkdownCommand;
   readonly icon: string;
   readonly label: string;
   /** Keys to show in the tooltip, for a host's own command. Built-in commands show the keys they're bound to. */
@@ -37,9 +39,9 @@ export function defineToolbarItem<T extends ToolbarButton | ToolbarMenu>(item: T
   return Object.freeze(item);
 }
 
-/** The command a button runs. */
-export function commandOf(button: ToolbarButton): MarkdownCommand {
-  return typeof button.command === "string" ? commands[button.command] : button.command;
+/** The command a button runs in an editor. */
+export function commandOf(state: EditorState, button: ToolbarButton): MarkdownCommand {
+  return typeof button.command === "string" ? commandNamed(state, button.command) : button.command;
 }
 
 export const isMenu = (item: ToolbarItem): item is ToolbarMenu => typeof item === "object" && "menu" in item;

@@ -1,35 +1,37 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import { Decoration, ViewPlugin, type DecorationSet, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { classFor, classNamesFacet, type Part } from "../classes.js";
 
-/** The class each kind of block gives every line it spans. */
-const LINE_CLASSES: Readonly<Record<string, string>> = {
-  ATXHeading1: "nme-line-h1",
-  ATXHeading2: "nme-line-h2",
-  ATXHeading3: "nme-line-h3",
-  ATXHeading4: "nme-line-h4",
-  ATXHeading5: "nme-line-h5",
-  ATXHeading6: "nme-line-h6",
-  SetextHeading1: "nme-line-h1",
-  SetextHeading2: "nme-line-h2",
-  Blockquote: "nme-line-quote",
-  ListItem: "nme-line-list",
-  FencedCode: "nme-line-fence",
-  Table: "nme-line-table",
+/** The part each kind of block makes of every line it spans. */
+const LINE_PARTS: Readonly<Record<string, Part>> = {
+  ATXHeading1: "line-h1",
+  ATXHeading2: "line-h2",
+  ATXHeading3: "line-h3",
+  ATXHeading4: "line-h4",
+  ATXHeading5: "line-h5",
+  ATXHeading6: "line-h6",
+  SetextHeading1: "line-h1",
+  SetextHeading2: "line-h2",
+  Blockquote: "line-quote",
+  ListItem: "line-list",
+  FencedCode: "line-fence",
+  Table: "line-table",
 };
 
 /**
  * Marks the parser tags only as generic markup, which get a class of their
  * own so their tokens can color them apart from other markers.
  */
-const MARK_CLASSES: Readonly<Record<string, string>> = {
-  ListMark: "nme-list-marker",
-  TableDelimiter: "nme-table-border",
+const MARK_PARTS: Readonly<Record<string, Part>> = {
+  ListMark: "list-marker",
+  TableDelimiter: "table-border",
 };
 
 /** The line and mark classes for the parts of the doc in `ranges`, from the syntax tree. */
 export function styleDecorations(state: EditorState, ranges: readonly { from: number; to: number }[]): DecorationSet {
   const tree = syntaxTree(state);
+  const names = state.facet(classNamesFacet);
   const lines = new Map<number, Set<string>>();
   const marks = new Map<string, { from: number; to: number; className: string }>();
   const addLines = (from: number, to: number, className: string) => {
@@ -46,10 +48,11 @@ export function styleDecorations(state: EditorState, ranges: readonly { from: nu
       from: range.from,
       to: range.to,
       enter: (node) => {
-        const line = LINE_CLASSES[node.name];
-        if (line) addLines(Math.max(node.from, range.from), Math.min(node.to, range.to), line);
-        if (node.name === "TaskMarker") addLines(node.from, node.from, "nme-line-task");
-        const mark = MARK_CLASSES[node.name];
+        const line = LINE_PARTS[node.name];
+        if (line) addLines(Math.max(node.from, range.from), Math.min(node.to, range.to), classFor(names, line));
+        if (node.name === "TaskMarker") addLines(node.from, node.from, classFor(names, "line-task"));
+        const part = MARK_PARTS[node.name];
+        const mark = part && classFor(names, part);
         if (mark && node.to > node.from) marks.set(`${node.from}:${mark}`, { from: node.from, to: node.to, className: mark });
       },
     });

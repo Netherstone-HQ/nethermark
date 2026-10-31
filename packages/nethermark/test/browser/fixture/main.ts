@@ -1,7 +1,15 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { createToolbar, themes, type Toolbar } from "../../../src/index.js";
+import {
+  createMarkdownEditor,
+  createToolbar,
+  defaultToolbar,
+  defineCommand,
+  themes,
+  type MarkdownEditor,
+  type Toolbar,
+} from "../../../src/index.js";
 import { formattingKeymap } from "../../../src/keymap.js";
 import { editorStyles, themeExtension } from "../../../src/styles/index.js";
 
@@ -33,7 +41,7 @@ window.mount = (doc, { theme = "light", toolbar = false, readOnly = false, width
       doc,
       extensions: [
         markdown({ base: markdownLanguage }),
-        editorStyles,
+        editorStyles(),
         themeExtension(themes[theme]),
         formattingKeymap(),
         EditorState.readOnly.of(readOnly),
@@ -42,4 +50,82 @@ window.mount = (doc, { theme = "light", toolbar = false, readOnly = false, width
   });
   window.formatBar = toolbar ? createToolbar(window.view) : undefined;
   if (window.formatBar) app.prepend(window.formatBar.dom);
+};
+
+// ── createMarkdownEditor ─────────────────────────────────────────────────────
+
+type CreateOptions = {
+  doc?: string;
+  theme?: "light" | "dark" | "auto";
+  toolbar?: boolean;
+  lineNumbers?: boolean;
+  readOnly?: boolean;
+  placeholder?: string;
+  ariaLabel?: string;
+  classNames?: Record<string, string>;
+  custom?: boolean;
+  paste?: "sync" | "async" | "none";
+  drop?: "sync" | "async";
+};
+
+declare global {
+  interface Window {
+    create(options?: CreateOptions): void;
+    editor?: MarkdownEditor;
+    changes: string[];
+    /** Settles the pending async hook with Markdown. */
+    settle?: (markdown: string) => void;
+    hookInput?: unknown;
+    presets: typeof themes;
+  }
+}
+
+window.presets = themes;
+
+/** Uppercases the selection: a host's own command. */
+const shout = defineCommand({
+  run: (state) => {
+    const { from, to } = state.selection.main;
+    return from === to ? null : { changes: { from, to, insert: state.sliceDoc(from, to).toUpperCase() } };
+  },
+});
+
+function hook(kind: "sync" | "async" | "none" | undefined, markdown: string) {
+  if (!kind) return undefined;
+  return (input: unknown) => {
+    window.hookInput = input;
+    if (kind === "none") return undefined;
+    if (kind === "sync") return markdown;
+    return new Promise<string>((resolve) => (window.settle = resolve));
+  };
+}
+
+window.create = (options = {}) => {
+  window.editor?.destroy();
+  window.formatBar?.destroy();
+  window.view?.destroy();
+  const app = document.getElementById("app")!;
+  app.replaceChildren();
+  window.changes = [];
+  const theme = options.theme === "auto" ? "auto" : themes[options.theme ?? "light"];
+  window.editor = createMarkdownEditor({
+    parent: app,
+    doc: options.doc ?? "",
+    theme,
+    ...(options.toolbar === false && { toolbar: false }),
+    ...(options.custom && {
+      commands: { shout },
+      shortcuts: { shout: ["Mod-u"] },
+      toolbar: [...defaultToolbar, { command: "shout", icon: "!", label: "Shout" }],
+    }),
+    ...(options.lineNumbers === false && { lineNumbers: false }),
+    ...(options.readOnly && { readOnly: true }),
+    ...(options.placeholder && { placeholder: options.placeholder }),
+    ...(options.ariaLabel && { ariaLabel: options.ariaLabel }),
+    ...(options.classNames && { classNames: options.classNames }),
+    onChange: (doc) => window.changes.push(doc),
+    ...(options.paste && { onPaste: hook(options.paste, "**pasted**") }),
+    ...(options.drop && { onDrop: hook(options.drop, "![](picture.png)") }),
+  });
+  window.view = window.editor.view;
 };

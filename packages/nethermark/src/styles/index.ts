@@ -3,11 +3,14 @@ import { Facet, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { themeStyle, type Theme } from "../theme/theme.js";
 import { codeMirrorStyles, layeredStyles } from "./css.js";
-import { markdownHighlight } from "./highlight.js";
+import type { ClassNames } from "../classes.js";
+import { highlightStyle } from "./highlight.js";
 import { lineStyles } from "./lines.js";
 
 /** Everything that draws the editor from a theme's tokens, except the tokens themselves. */
-export const editorStyles: Extension = [syntaxHighlighting(markdownHighlight), lineStyles, layeredStyles, codeMirrorStyles];
+export function editorStyles(names: ClassNames = {}): Extension {
+  return [syntaxHighlighting(highlightStyle(names)), lineStyles, layeredStyles, codeMirrorStyles];
+}
 
 /** The editor's theme, for parts outside the editor, like a toolbar, to draw with. */
 export const themeFacet = Facet.define<Theme, Theme | null>({ combine: (values) => values[0] ?? null });

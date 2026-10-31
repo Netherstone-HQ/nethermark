@@ -1,0 +1,176 @@
+import { expect, test, type Page } from "@playwright/test";
+import { themes } from "../../src/theme/index.js";
+
+type Options = Parameters<Window["create"]>[0];
+
+async function create(page: Page, options: Options = {}) {
+  await page.goto("/");
+  await page.evaluate((o) => window.create(o), options);
+}
+
+const value = (page: Page) => page.evaluate(() => window.editor!.getValue());
+
+function rgb(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+test("builds the toolbar and editor in one root, with every part's class", async ({ page }) => {
+  await create(page, { doc: "text", ariaLabel: "Notes", classNames: { root: "host-root", content: "host-content", strong: "host-strong" } });
+  const root = page.locator(".nme-root");
+  await expect(root).toHaveClass(/host-root/);
+  await expect(root.locator("> .nme-toolbar")).toBeVisible();
+  await expect(root.locator(".cm-gutters")).toHaveClass(/nme-gutter/);
+  await expect(root.locator(".cm-content")).toHaveClass(/nme-content host-content/);
+  await expect(root.locator(".cm-content")).toHaveAttribute("aria-label", "Notes");
+  // The root carries the tokens.
+  expect(await root.evaluate((el) => el.style.getPropertyValue("--nme-background").trim())).toBe(themes.light.background);
+});
+
+test("onChange fires once per change, and getValue and setValue round-trip", async ({ page }) => {
+  await create(page, { doc: "ab" });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("cd");
+  expect(await page.evaluate(() => window.changes)).toEqual(["abc", "abcd"]);
+  await page.evaluate(() => window.editor!.setValue("new"));
+  expect(await value(page)).toBe("new");
+  // One undo step brings the old doc back.
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await value(page)).toBe("abcd");
+});
+
+test("CRLF docs come back with CRLF", async ({ page }) => {
+  await create(page, { doc: "a\r\nb" });
+  expect(await value(page)).toBe("a\r\nb");
+  await page.evaluate(() => window.editor!.run("bold"));
+  expect(await value(page)).toMatch(/\r\n/);
+  await page.evaluate(() => window.editor!.setValue("x\ny"));
+  expect(await value(page)).toBe("x\ny");
+});
+
+test("run runs commands by name, and a host's command works everywhere", async ({ page }) => {
+  await create(page, { doc: "word", custom: true });
+  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 0, head: 4 } }));
+  expect(await page.evaluate(() => window.editor!.run("shout"))).toBe(true);
+  expect(await value(page)).toBe("WORD");
+  expect(await page.evaluate(() => window.editor!.run("bold"))).toBe(true);
+  expect(await value(page)).toBe("**WORD**");
+  await expect(page.locator('.nme-button[aria-label="Shout"]')).toHaveAttribute("title", /^Shout \((Ctrl\+U|⌘U)\)$/);
+  expect(await page.evaluate(() => {
+    try {
+      window.editor!.run("missing");
+      return "ran";
+    } catch (error) {
+      return (error as Error).message;
+    }
+  })).toMatch(/no command named "missing"/);
+});
+
+test("setTheme swaps the theme and keeps the cursor and history", async ({ page }) => {
+  await create(page, { doc: "abc" });
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("x");
+  const head = await page.evaluate(() => window.view!.state.selection.main.head);
+  await page.evaluate(() => window.editor!.setTheme(window.presets.dark));
+  await expect(page.locator(".cm-editor")).toHaveCSS("background-color", rgb(themes.dark.background));
+  await expect(page.locator(".nme-toolbar")).toHaveCSS("background-color", rgb(themes.dark.toolbarBackground));
+  expect(await page.evaluate(() => window.view!.state.selection.main.head)).toBe(head);
+  await page.locator(".cm-content").press("ControlOrMeta+z");
+  expect(await value(page)).toBe("abc");
+});
+
+test('theme "auto" follows the system', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await create(page, { theme: "auto" });
+  await expect(page.locator(".cm-editor")).toHaveCSS("background-color", rgb(themes.light.background));
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator(".cm-editor")).toHaveCSS("background-color", rgb(themes.dark.background));
+});
+
+test("setReadOnly and setShortcuts change the editor in place", async ({ page }) => {
+  await create(page, { doc: "word" });
+  const bold = page.locator('.nme-toolbar > .nme-button[aria-label="Bold"]');
+  await page.evaluate(() => window.editor!.setReadOnly(true));
+  await expect(bold).toBeDisabled();
+  await page.evaluate(() => window.editor!.setReadOnly(false));
+  await expect(bold).toBeEnabled();
+  await page.evaluate(() => window.editor!.setShortcuts({ bold: ["Mod-Shift-b"] }));
+  await expect(bold).toHaveAttribute("title", /^Bold \((Ctrl\+Shift\+B|⇧⌘B)\)$/);
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Shift+b");
+  expect(await value(page)).toBe("**word**");
+});
+
+test("options: no toolbar, no line numbers, a placeholder", async ({ page }) => {
+  await create(page, { toolbar: false, lineNumbers: false, placeholder: "Write here" });
+  await expect(page.locator(".nme-toolbar")).toHaveCount(0);
+  await expect(page.locator(".cm-gutters")).toHaveCount(0);
+  await expect(page.locator(".cm-placeholder")).toHaveText("Write here");
+});
+
+test("Enter continues a list, Tab nests it, and outside lists Tab moves focus on", async ({ page }) => {
+  await create(page, { doc: "- a", toolbar: false });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("b");
+  await page.keyboard.press("Tab");
+  expect(await value(page)).toBe("- a\n  - b");
+  await page.evaluate(() => window.editor!.setValue("plain"));
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".cm-content")).not.toBeFocused();
+});
+
+async function pasteHtml(page: Page) {
+  await page.locator(".cm-content").evaluate((el) => {
+    const data = new DataTransfer();
+    data.setData("text/html", "<b>pasted</b>");
+    data.setData("text/plain", "pasted");
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+}
+
+test("pasted HTML goes through onPaste", async ({ page }) => {
+  await create(page, { doc: "x ", paste: "sync" });
+  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 2 } }));
+  await pasteHtml(page);
+  expect(await value(page)).toBe("x **pasted**");
+  expect(await page.evaluate(() => window.hookInput)).toEqual({ html: "<b>pasted</b>", text: "pasted" });
+});
+
+test("an async onPaste result lands where the cursor was, after edits meanwhile", async ({ page }) => {
+  await create(page, { doc: "end", paste: "async" });
+  await page.evaluate(() => window.view!.dispatch({ selection: { anchor: 3 } }));
+  await pasteHtml(page);
+  await page.evaluate(() => window.view!.dispatch({ changes: { from: 0, insert: "the " } }));
+  await page.evaluate(() => window.settle!(" **later**"));
+  await expect.poll(() => value(page)).toBe("the end **later**");
+});
+
+test("when onPaste returns nothing, the plain text pastes", async ({ page }) => {
+  await create(page, { doc: "", paste: "none" });
+  await page.locator(".cm-content").focus();
+  await pasteHtml(page);
+  expect(await value(page)).toBe("pasted");
+});
+
+test("dropped files go through onDrop with their position", async ({ page }) => {
+  await create(page, { doc: "text", drop: "sync" });
+  await page.locator(".cm-content").evaluate((el) => {
+    const data = new DataTransfer();
+    data.items.add(new File(["x"], "picture.png", { type: "image/png" }));
+    const line = el.querySelector(".cm-line")!.getBoundingClientRect();
+    el.dispatchEvent(new DragEvent("drop", { dataTransfer: data, clientX: line.right - 1, clientY: line.top + line.height / 2, bubbles: true, cancelable: true }));
+  });
+  expect(await value(page)).toBe("text![](picture.png)");
+  expect(await page.evaluate(() => (window.hookInput as { position: number }).position)).toBe(4);
+});
+
+test("destroy takes it all out of the page", async ({ page }) => {
+  await create(page, { doc: "x" });
+  await page.evaluate(() => window.editor!.destroy());
+  await expect(page.locator(".nme-root")).toHaveCount(0);
+});

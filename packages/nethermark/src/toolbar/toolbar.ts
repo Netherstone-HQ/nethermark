@@ -1,5 +1,6 @@
 import { Compartment, StateEffect, type EditorState } from "@codemirror/state";
 import { keymap, ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { classFor, classNamesFacet, type ClassNames, type Part } from "../classes.js";
 import { shortcutsFacet } from "../keymap.js";
 import { themeFacet } from "../styles/index.js";
 import { themes } from "../theme/index.js";
@@ -55,7 +56,7 @@ class Menu {
     private readonly toolbar: ToolbarView,
   ) {
     this.popup = document.createElement("div");
-    this.popup.className = "nme-menu";
+    this.popup.className = toolbar.classOf("menu");
     this.popup.setAttribute("role", "menu");
     this.popup.id = `nme-menu-${++ids}`;
     this.popup.hidden = true;
@@ -99,9 +100,9 @@ class Menu {
       for (const button of group) {
         const el = document.createElement("button");
         el.type = "button";
-        el.className = "nme-menu-item";
+        el.className = this.toolbar.classOf("menu-item");
         el.tabIndex = -1;
-        el.setAttribute("role", commandOf(button).isActive ? "menuitemcheckbox" : "menuitem");
+        el.setAttribute("role", this.toolbar.commandOf(button).isActive ? "menuitemcheckbox" : "menuitem");
         fillIcon(el, button.icon);
         el.append(button.label);
         el.addEventListener("click", () => {
@@ -172,13 +173,25 @@ class ToolbarView {
     if (!this.dom.contains(event.target as Node)) this.closeMenus(null);
   };
 
+  private readonly names: ClassNames;
+
   constructor(
     private readonly view: EditorView,
     items: readonly ToolbarItem[],
   ) {
     mountToolbarStyles(this.root);
+    this.names = view.state.facet(classNamesFacet);
+    // A name that means no command is a mistake to show now, not on the first click.
+    const named = (list: readonly ToolbarItem[]): void => {
+      for (const item of list) {
+        if (item === "separator") continue;
+        if (isMenu(item)) named(item.menu);
+        else this.commandOf(item);
+      }
+    };
+    named(items);
     this.dom = document.createElement("div");
-    this.dom.className = "nme-toolbar";
+    this.dom.className = this.classOf("toolbar");
     this.dom.setAttribute("role", "toolbar");
     this.dom.setAttribute("aria-label", "Formatting");
     this.dom.addEventListener("keydown", (event) => this.onKey(event));
@@ -196,7 +209,7 @@ class ToolbarView {
 
     const moreButton = this.barButton(icons.more, "More");
     this.moreAnchor = document.createElement("div");
-    this.moreAnchor.className = "nme-more";
+    this.moreAnchor.className = this.classOf("more");
     this.more = new Menu(moreButton, this);
     this.moreAnchor.append(moreButton, this.more.popup);
     this.dom.append(this.moreAnchor);
@@ -209,7 +222,7 @@ class ToolbarView {
   private barButton(icon: string, label: string): HTMLButtonElement {
     const el = document.createElement("button");
     el.type = "button";
-    el.className = "nme-button";
+    el.className = this.classOf("button");
     el.tabIndex = -1;
     el.setAttribute("aria-label", label);
     el.title = label;
@@ -220,7 +233,7 @@ class ToolbarView {
   private slotFor(item: ToolbarItem): Slot {
     if (item === "separator") {
       const el = document.createElement("div");
-      el.className = "nme-separator";
+      el.className = this.classOf("separator");
       el.setAttribute("role", "separator");
       el.setAttribute("aria-orientation", "vertical");
       return { kind: "separator", el };
@@ -242,9 +255,19 @@ class ToolbarView {
     return { kind: "button", el, item };
   }
 
+  /** A part's class, with the host's classes for it. */
+  classOf(part: Part): string {
+    return classFor(this.names, part);
+  }
+
+  /** The command a button runs in this editor. */
+  commandOf(button: ToolbarButton) {
+    return commandOf(this.view.state, button);
+  }
+
   /** Runs a button's command on the editor, then gives the editor focus back. */
   run(button: ToolbarButton): void {
-    commandOf(button)({ state: this.view.state, dispatch: (tr) => this.view.dispatch(tr) });
+    this.commandOf(button)({ state: this.view.state, dispatch: (tr) => this.view.dispatch(tr) });
     this.view.focus();
   }
 
@@ -281,8 +304,8 @@ class ToolbarView {
     const shortcuts = state.facet(shortcutsFacet);
     const readOnly = state.readOnly;
     for (const { el, button } of this.allEntries()) {
-      const command = commandOf(button);
-      const keys = button.shortcut ?? (typeof button.command === "string" ? shortcuts[button.command] : []);
+      const command = commandOf(state, button);
+      const keys = button.shortcut ?? (typeof button.command === "string" ? shortcuts[button.command] : undefined) ?? [];
       el.title = keys.length > 0 ? `${button.label} (${keys.map((key) => formatKeys(key)).join(", ")})` : button.label;
       if (command.isActive) {
         const active = String(command.isActive(state));
