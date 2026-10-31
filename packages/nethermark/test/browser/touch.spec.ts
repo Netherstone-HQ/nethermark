@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mod } from "./keys.js";
 
 // Taps need a touch screen: these run on the phone projects.
 test.skip(({ hasTouch }) => !hasTouch, "needs a touch screen");
@@ -117,7 +118,7 @@ test("shortcuts and Alt-F10 still work from a keyboard on a touch device", async
   await mount(page, "word");
   await page.locator(".cm-content").tap();
   await select(page, 0, 4);
-  await page.keyboard.press("ControlOrMeta+b");
+  await page.keyboard.press(`${await mod(page)}+b`);
   expect(await doc(page)).toBe("**word**");
   await page.keyboard.press("Alt+F10");
   await expect(page.locator(".nme-toolbar [tabindex='0']")).toBeFocused();
