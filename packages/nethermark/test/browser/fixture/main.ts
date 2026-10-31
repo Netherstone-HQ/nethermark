@@ -13,6 +13,7 @@ import {
   type Toolbar,
 } from "../../../src/index.js";
 import { formattingKeymap } from "../../../src/keymap.js";
+import { createPreview, previewButton, type Preview, type PreviewLayout } from "../../../src/preview/index.js";
 import { highlightSyntax } from "../../highlight-syntax.js";
 import { editorStyles, themeExtension } from "../../../src/styles/index.js";
 
@@ -153,4 +154,55 @@ window.create = (options = {}) => {
     ...(options.drop && { onDrop: hook(options.drop, "![](picture.png)") }),
   });
   window.view = window.editor.view;
+};
+
+// ── Preview ──────────────────────────────────────────────────────────────────
+
+type PreviewFixtureOptions = {
+  doc?: string;
+  layout?: PreviewLayout;
+  open?: boolean;
+  /** Markdown to HTML: each line a paragraph with its `data-line`, or this HTML as is. */
+  html?: string;
+  async?: boolean;
+  sanitize?: false;
+  readOnly?: boolean;
+};
+
+declare global {
+  interface Window {
+    createWithPreview(options?: PreviewFixtureOptions): void;
+    preview?: Preview;
+    renders: number;
+  }
+}
+
+const escape = (text: string) => text.replace(/[&<>]/g, (char) => `&#${char.charCodeAt(0)};`);
+
+window.createWithPreview = (options = {}) => {
+  window.preview?.destroy();
+  window.editor?.destroy();
+  const app = document.getElementById("app")!;
+  app.replaceChildren();
+  window.renders = 0;
+  window.editor = createMarkdownEditor({
+    parent: app,
+    doc: options.doc ?? "",
+    readOnly: options.readOnly ?? false,
+    toolbar: [...defaultToolbar, "separator", previewButton()],
+  });
+  window.view = window.editor.view;
+  const lines = (markdown: string) =>
+    markdown.split("\n").map((line, i) => `<p data-line="${i}">${escape(line) || "&nbsp;"}</p>`).join("");
+  const render = (markdown: string) => {
+    window.renders++;
+    const html = options.html ?? lines(markdown);
+    return options.async ? new Promise<string>((resolve) => setTimeout(() => resolve(html))) : html;
+  };
+  window.preview = createPreview(window.view, {
+    render,
+    ...(options.layout && { layout: options.layout }),
+    ...(options.open !== undefined && { open: options.open }),
+    ...(options.sanitize === false && { sanitize: false }),
+  });
 };

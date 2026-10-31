@@ -1,3 +1,4 @@
+import { mountStyles } from "../styles/mount.js";
 import { token } from "../theme/theme.js";
 
 const ring = `${token("focusRingWidth")} solid ${token("focusRing")}`;
@@ -103,15 +104,7 @@ const css = `@layer nme {
   .nme-menu-separator { height: ${token("borderWidth")}; background: ${token("separator")}; }
 }`;
 
-const mounted = new WeakSet<Document | ShadowRoot>();
-
 /** Adds the toolbar's CSS to a document or shadow root, once. */
 export function mountToolbarStyles(root: Document | ShadowRoot): void {
-  if (mounted.has(root)) return;
-  const doc = "host" in root ? root.ownerDocument : root;
-  const Sheet = doc.defaultView?.CSSStyleSheet ?? CSSStyleSheet;
-  const sheet = new Sheet();
-  sheet.replaceSync(css);
-  root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
-  mounted.add(root);
+  mountStyles(root, css);
 }

@@ -3,6 +3,7 @@ import { Facet } from "@codemirror/state";
 /** The parts of the editor with a stable `nme-` class, named by that class without its prefix. */
 export type Part =
   | "root" | "toolbar" | "button" | "separator" | "more" | "menu" | "menu-item" | "gutter" | "content"
+  | "panes" | "preview"
   | "line-h1" | "line-h2" | "line-h3" | "line-h4" | "line-h5" | "line-h6"
   | "line-quote" | "line-list" | "line-task" | "line-fence" | "line-table"
   | "strong" | "em" | "strike" | "code" | "link" | "markup"
