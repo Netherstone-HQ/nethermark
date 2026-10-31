@@ -121,15 +121,21 @@ test("Enter continues a list, Tab nests it, and outside lists Tab moves focus on
   await page.evaluate(() => window.editor!.setValue("plain"));
   await page.locator(".cm-content").click();
   await page.keyboard.press("Tab");
-  await expect(page.locator(".cm-content")).not.toBeFocused();
+  await expect(page.locator("#after")).toBeFocused();
+  expect(await value(page)).toBe("plain");
 });
 
+/**
+ * Pastes HTML and its plain text. Firefox drops the clipboardData of a paste
+ * event made in script, so the event carries it as a plain object, which
+ * the editor reads the same way in every engine.
+ */
 async function pasteHtml(page: Page) {
   await page.locator(".cm-content").evaluate((el) => {
-    const data = new DataTransfer();
-    data.setData("text/html", "<b>pasted</b>");
-    data.setData("text/plain", "pasted");
-    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    const data: Record<string, string> = { "text/html": "<b>pasted</b>", "text/plain": "pasted" };
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { getData: (type: string) => data[type] ?? "", types: Object.keys(data) } });
+    el.dispatchEvent(event);
   });
 }
 
