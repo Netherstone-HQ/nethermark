@@ -11,6 +11,12 @@ updates:
         patterns: ["*"]
         exclude-patterns: ["@codemirror/*", "@lezer/*"]
         update-types: [minor, patch]
+    ignore:
+      # Types match the Node that CI runs (.node-version), not the newest one.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Pinned to the Playwright whose browsers the cloud sessions have; bumped by hand.
+      - dependency-name: "@playwright/test"
 
   - package-ecosystem: github-actions
     directory: /
