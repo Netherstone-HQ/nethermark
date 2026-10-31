@@ -1,5 +1,11 @@
 # @netherstone/nethermark
 
+## 0.1.1
+
+### Patch Changes
+
+- 419b4f1: Rewrite the README: install for each package manager, every option, the handle, all commands and keys, toolbar items, paste and drop, theme tokens, classes and accessibility.
+
 ## 0.1.0
 
 ### Minor Changes

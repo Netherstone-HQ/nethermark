@@ -1,6 +1,6 @@
 {
   "name": "@netherstone/nethermark",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A small Markdown source editor built on CodeMirror 6",
   "license": "MIT",
   "type": "module",
