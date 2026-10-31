@@ -64,6 +64,7 @@ The editor shows Markdown source only. Rendering a preview or converting to HTML
 | `shortcuts` | keys by command name | the defaults below |
 | `commands` | your commands by name | none |
 | `classNames` | your classes by part | none |
+| `labels` | strings by name | English |
 | `onPaste` | `PasteHook` | none |
 | `onDrop` | `DropHook` | none |
 | `markdownExtensions` | Lezer Markdown extensions | none |
@@ -88,9 +89,10 @@ The editor shows Markdown source only. Rendering a preview or converting to HTML
 | `setTheme(theme)` | Swaps the theme. Keeps the cursor and undo history |
 | `setReadOnly(on)` | Toggles read-only. Editing buttons are disabled while it's on |
 | `setShortcuts(map)` | Rebinds keys. Commands left out keep their defaults |
+| `setLabels(map)` | Replaces the labels. Ones left out go back to English |
 | `destroy()` | Removes the editor and toolbar from the page |
 
-`setTheme`, `setReadOnly` and `setShortcuts` reconfigure CodeMirror compartments, so nothing is rebuilt. `run` throws on an unknown command name.
+`setTheme`, `setReadOnly`, `setShortcuts` and `setLabels` reconfigure CodeMirror compartments, so nothing is rebuilt. `run` throws on an unknown command name.
 
 ## Commands
 
@@ -253,7 +255,7 @@ parent.prepend(toolbar.dom);
 
 Plain text pastes unchanged. The package doesn't parse HTML. Two hooks hand HTML and files to the host:
 
-- `onPaste({ html, text })` fires when the clipboard holds HTML.
+- `onPaste({ html, text, files })` fires when the clipboard holds HTML or files, such as a pasted screenshot. `html` is `""` when there's none. Dropped HTML goes through it too, with no files.
 - `onDrop({ files, position })` fires when files are dropped. Dropped text inserts like a paste.
 
 Both return Markdown to insert, nothing to fall back to the default handling, or a promise of either. While a promise is pending, the insert position is mapped through edits made in the meantime.
@@ -268,7 +270,41 @@ createMarkdownEditor({
 });
 ```
 
-`upload` stands for your own storage code.
+`upload` stands for your own storage code. The same code handles a pasted picture:
+
+```ts
+createMarkdownEditor({
+  parent,
+  onPaste: async ({ files }) => {
+    if (files.length === 0) return;
+    const url = await upload(files[0]);
+    return `![](${url})`;
+  },
+});
+```
+
+## Labels
+
+`labels` replaces any string the package shows or inserts, such as for a translation. Names left out keep their English defaults, which `defaultLabels` exports.
+
+```ts
+createMarkdownEditor({
+  parent,
+  labels: { toolbar: "Mise en forme", bold: "Gras", tableColumn: "Colonne {n}" },
+});
+
+editor.setLabels({ bold: "Fett" });
+```
+
+| Names | What they label |
+| --- | --- |
+| `toolbar`, `more`, `tableMenu` | The toolbar's accessible name, the More menu, the table menu |
+| One per built-in toolbar item, by command name, such as `bold`, `heading1`, `addRowAbove` | Its tooltip, aria-label and menu text |
+| `tableColumn` | A new table's header cells. `{n}` is the column number |
+| `imageAlt`, `url` | The placeholders a new image or link gets |
+| `keyCtrl`, `keyAlt`, `keyShift`, `keyMeta` | Modifier names in tooltips outside macOS |
+
+Your own toolbar items keep the `label` you give them. `createToolbar` reads the labels from the editor state, so it follows `setLabels` too.
 
 ## Themes
 

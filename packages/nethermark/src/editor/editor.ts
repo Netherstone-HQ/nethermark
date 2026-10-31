@@ -17,6 +17,7 @@ import { classFor, classNamesFacet, type ClassNames } from "../classes.js";
 import type { MarkdownCommand } from "../commands/command.js";
 import { commandsFacet } from "../commands/registry.js";
 import { formattingKeymap, type Shortcuts } from "../keymap.js";
+import { labelsFacet, type Labels } from "../labels.js";
 import { editorStyles, themeExtension } from "../styles/index.js";
 import { themes } from "../theme/index.js";
 import type { Theme } from "../theme/theme.js";
@@ -40,6 +41,8 @@ export type MarkdownEditorOptions = {
   /** The host's own commands by name, for `run`, toolbar items and `shortcuts`. Per editor, never global. */
   readonly commands?: Readonly<Record<string, MarkdownCommand>>;
   readonly classNames?: ClassNames;
+  /** Strings to replace, such as a translation: toolbar labels and tooltips, and text commands insert. */
+  readonly labels?: Labels;
   readonly onPaste?: PasteHook;
   readonly onDrop?: DropHook;
   /**
@@ -94,6 +97,7 @@ export type Compartments = {
   readonly theme: Compartment;
   readonly readOnly: Compartment;
   readonly shortcuts: Compartment;
+  readonly labels: Compartment;
 };
 
 /**
@@ -102,7 +106,7 @@ export type Compartments = {
  * without a wrapper of ours.
  */
 export function buildEditor(options: MarkdownEditorOptions, root: boolean): { extension: Extension; compartments: Compartments } {
-  const compartments: Compartments = { theme: new Compartment(), readOnly: new Compartment(), shortcuts: new Compartment() };
+  const compartments: Compartments = { theme: new Compartment(), readOnly: new Compartment(), shortcuts: new Compartment(), labels: new Compartment() };
   const names = options.classNames ?? {};
   const custom = options.commands ?? {};
   const { onChange } = options;
@@ -126,6 +130,7 @@ export function buildEditor(options: MarkdownEditorOptions, root: boolean): { ex
     compartments.theme.of(themeContent(options.theme ?? themes.light, compartments.theme)),
     compartments.readOnly.of(EditorState.readOnly.of(options.readOnly ?? false)),
     compartments.shortcuts.of(formattingKeymap(options.shortcuts, custom)),
+    compartments.labels.of(labelsFacet.of(options.labels ?? {})),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     pasteAndDrop(options.onPaste, options.onDrop),
     onChange

@@ -2,12 +2,13 @@ import { Compartment, StateEffect, type EditorState } from "@codemirror/state";
 import { keymap, ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { classFor, classNamesFacet, type ClassNames, type Part } from "../classes.js";
 import { shortcutsFacet } from "../keymap.js";
+import { labelsFacet } from "../labels.js";
 import { themeFacet } from "../styles/index.js";
 import { themes } from "../theme/index.js";
 import { themeStyle, type Theme } from "../theme/theme.js";
 import { icons } from "./icons.js";
-import { commandOf, defaultToolbar, isMenu, type ToolbarButton, type ToolbarItem, type ToolbarMenu } from "./items.js";
-import { formatKeys } from "./keys.js";
+import { commandOf, defaultToolbar, isMenu, labelOf, type ToolbarButton, type ToolbarItem, type ToolbarMenu } from "./items.js";
+import { formatKeys, isMac } from "./keys.js";
 import { mountToolbarStyles } from "./styles.js";
 
 /** A toolbar for an editor: put `dom` anywhere in the page. */
@@ -44,6 +45,12 @@ function fillIcon(el: HTMLElement, icon: string): void {
     text.textContent = icon;
     el.append(text);
   }
+}
+
+/** A bar button's name, for assistive tech and as its tooltip. */
+function setLabel(el: HTMLElement, label: string): void {
+  el.setAttribute("aria-label", label);
+  el.title = label;
 }
 
 /** A popup menu that opens from a button: a real menu, with arrow keys. */
@@ -110,7 +117,7 @@ class Menu {
         el.tabIndex = -1;
         el.setAttribute("role", this.toolbar.commandOf(button).isActive ? "menuitemcheckbox" : "menuitem");
         fillIcon(el, button.icon);
-        el.append(button.label);
+        el.append(this.toolbar.labelOf(button));
         el.addEventListener("click", () => {
           this.close(false);
           this.toolbar.run(button);
@@ -235,7 +242,7 @@ class ToolbarView {
     this.dom = document.createElement("div");
     this.dom.className = this.classOf("toolbar");
     this.dom.setAttribute("role", "toolbar");
-    this.dom.setAttribute("aria-label", "Formatting");
+    this.dom.setAttribute("aria-label", view.state.facet(labelsFacet).toolbar);
     this.dom.addEventListener("keydown", (event) => this.onKey(event));
     // Keeps the editor's focus and selection, and a phone's keyboard up, while pressing any button.
     this.dom.addEventListener("mousedown", (event) => {
@@ -264,7 +271,7 @@ class ToolbarView {
     }
     for (const slot of this.slots) this.dom.append(slot.el);
 
-    const moreButton = this.barButton(icons.more, "More");
+    const moreButton = this.barButton(icons.more, view.state.facet(labelsFacet).more);
     this.moreAnchor = document.createElement("div");
     this.moreAnchor.className = this.classOf("more");
     this.more = new Menu(moreButton, this);
@@ -281,8 +288,7 @@ class ToolbarView {
     el.type = "button";
     el.className = this.classOf("button");
     el.tabIndex = -1;
-    el.setAttribute("aria-label", label);
-    el.title = label;
+    setLabel(el, label);
     fillIcon(el, icon);
     return el;
   }
@@ -296,7 +302,7 @@ class ToolbarView {
       return { kind: "separator", el };
     }
     if (isMenu(item)) {
-      const trigger = this.barButton(item.icon, item.label);
+      const trigger = this.barButton(item.icon, this.labelOf(item));
       const anchor = document.createElement("div");
       anchor.className = "nme-menu-anchor";
       const menu = new Menu(trigger, this);
@@ -304,7 +310,7 @@ class ToolbarView {
       anchor.append(trigger, menu.popup);
       return { kind: "menu", el: anchor, item, menu };
     }
-    const el = this.barButton(item.icon, item.label);
+    const el = this.barButton(item.icon, this.labelOf(item));
     el.addEventListener("click", () => this.run(item));
     this.buttons.push({ el, button: item });
     return { kind: "button", el, item };
@@ -337,6 +343,25 @@ class ToolbarView {
     return classFor(this.names, part);
   }
 
+  /** The label an item shows in this editor. */
+  labelOf(item: ToolbarButton | ToolbarMenu): string {
+    return labelOf(item, this.view.state.facet(labelsFacet));
+  }
+
+  /** Every label on the bar and in its menus, after the editor's labels changed. */
+  private relabel(state: EditorState): void {
+    const labels = state.facet(labelsFacet);
+    this.dom.setAttribute("aria-label", labels.toolbar);
+    setLabel(this.more.trigger, labels.more);
+    for (const slot of this.slots) {
+      if (slot.kind === "button") setLabel(slot.el, labelOf(slot.item, labels));
+      else if (slot.kind === "menu") {
+        setLabel(slot.menu.trigger, labelOf(slot.item, labels));
+        slot.menu.render(slot.item.menu);
+      }
+    }
+  }
+
   /** The command a button runs in this editor. */
   commandOf(button: ToolbarButton) {
     return commandOf(this.view.state, button);
@@ -354,10 +379,12 @@ class ToolbarView {
     return [...this.buttons, ...menus, ...this.more.entries];
   }
 
-  /** Pressed state, tooltips, read-only, menus shown by context, and the theme, from the editor's state. */
-  sync(state: EditorState): void {
+  /**
+   * Pressed state, tooltips, read-only, menus shown by context, and the theme,
+   * from the editor's state. `relayout` fits the bar again even when none of those moved it.
+   */
+  sync(state: EditorState, relayout = false): void {
     this.syncButtons(state);
-    let relayout = false;
     for (const slot of this.slots) {
       if (slot.kind !== "menu" || !slot.item.visible) continue;
       const shown = slot.item.visible(state);
@@ -379,11 +406,13 @@ class ToolbarView {
   /** Tooltips, pressed state and read-only, on every button on the bar and in menus. */
   private syncButtons(state: EditorState): void {
     const shortcuts = state.facet(shortcutsFacet);
+    const labels = state.facet(labelsFacet);
     const readOnly = state.readOnly;
     for (const { el, button } of this.allEntries()) {
       const command = commandOf(state, button);
       const keys = button.shortcut ?? (typeof button.command === "string" ? shortcuts[button.command] : undefined) ?? [];
-      el.title = keys.length > 0 ? `${button.label} (${keys.map((key) => formatKeys(key)).join(", ")})` : button.label;
+      const label = labelOf(button, labels);
+      el.title = keys.length > 0 ? `${label} (${keys.map((key) => formatKeys(key, isMac, labels)).join(", ")})` : label;
       if (command.isActive) {
         const active = String(command.isActive(state));
         el.setAttribute(el.getAttribute("role") === "menuitemcheckbox" ? "aria-checked" : "aria-pressed", active);
@@ -501,10 +530,13 @@ class ToolbarView {
   }
 
   update(update: ViewUpdate): void {
+    // Labels change widths, so the bar is fitted again, which fills More with them too.
+    const relabel = update.startState.facet(labelsFacet) !== update.state.facet(labelsFacet);
+    if (relabel) this.relabel(update.state);
     const facets = update.startState.facet(shortcutsFacet) !== update.state.facet(shortcutsFacet)
       || update.startState.facet(themeFacet) !== update.state.facet(themeFacet);
-    if (update.docChanged || update.selectionSet || facets || update.startState.readOnly !== update.state.readOnly) {
-      this.sync(update.state);
+    if (relabel || update.docChanged || update.selectionSet || facets || update.startState.readOnly !== update.state.readOnly) {
+      this.sync(update.state, relabel);
     }
   }
 

@@ -1,6 +1,7 @@
 import { EditorSelection, type ChangeSpec, type EditorState, type SelectionRange, type TransactionSpec } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { defineCommand, type MarkdownCommand } from "./command.js";
+import { labelsFacet } from "../labels.js";
 import { ancestors, BLOCK_CODE, children, CODE, longestBacktickRun, treeForSelection, treeUpTo } from "./tree.js";
 
 type Range = { from: number; to: number };
@@ -459,7 +460,6 @@ export const inlineCodeCommand = inlineCommand(code);
 // ── Links ───────────────────────────────────────────────────────────────────
 
 const LINKS = new Set(["Link", "Autolink"]);
-const URL_PLACEHOLDER = "url";
 
 /** Takes a link off and keeps its text, or its URL when it has no text. */
 function unlink(state: EditorState, link: SyntaxNode, range: SelectionRange) {
@@ -512,18 +512,19 @@ function linkMarkers(state: EditorState, link: SyntaxNode): ChangeSpec[] {
  * several keep the text selected, so a second run takes them all off.
  */
 function linkParts(state: EditorState, parts: readonly Range[], range: SelectionRange, unlinks: ChangeSpec[] = []) {
+  const { url } = state.facet(labelsFacet);
   const changes = state.changes([
     ...unlinks,
     ...parts.flatMap((part) => [
       { from: part.from, insert: "[" },
-      { from: part.to, insert: `](${URL_PLACEHOLDER})` },
+      { from: part.to, insert: `](${url})` },
     ]),
   ]);
   const first = parts[0]!;
   const last = parts[parts.length - 1]!;
   if (parts.length > 1) return { changes, range: sameDirection(range, changes.mapPos(first.from, 1), changes.mapPos(last.to, -1)) };
-  const from = changes.mapPos(last.to, 1) - URL_PLACEHOLDER.length - 1;
-  return { changes, range: sameDirection(range, from, from + URL_PLACEHOLDER.length) };
+  const from = changes.mapPos(last.to, 1) - url.length - 1;
+  return { changes, range: sameDirection(range, from, from + url.length) };
 }
 
 function linkRange(state: EditorState, tree: Tree, range: SelectionRange) {

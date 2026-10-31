@@ -1,6 +1,7 @@
 import { EditorSelection, type ChangeSpec, type EditorState, type Line, type SelectionRange } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { defineCommand, type MarkdownCommand } from "./command.js";
+import { fillLabel, labelsFacet } from "../labels.js";
 import { ancestorNamed, CODE, longestBacktickRun, treeForSelection, treeUpTo } from "./tree.js";
 
 /** The shortest fence CommonMark allows. */
@@ -224,13 +225,12 @@ export const horizontalRuleCommand = defineCommand({
   },
 });
 
-const TABLE_HEADER = ["Column 1", "Column 2"] as const;
-
 export const tableCommand = defineCommand({
   run: (state) => {
     const tree = treeUpTo(state, state.doc.length);
+    const { tableColumn } = state.facet(labelsFacet);
+    const [first, second] = [1, 2].map((n) => fillLabel(tableColumn, { n })) as [string, string];
     return state.changeByRange((range) => {
-      const [first, second] = TABLE_HEADER;
       const { changes, start } = insertBlock(state, tree, range.head, [`| ${first} | ${second} |`, "| --- | --- |", "|  |  |"]);
       const cell = start + "| ".length;
       return { changes, range: EditorSelection.range(cell, cell + first.length) };
@@ -238,20 +238,18 @@ export const tableCommand = defineCommand({
   },
 });
 
-const ALT_PLACEHOLDER = "alt";
-const URL_PLACEHOLDER = "url";
-
 export const imageCommand = defineCommand({
   run: (state) => {
     const tree = treeForSelection(state);
+    const { imageAlt, url } = state.facet(labelsFacet);
     const result = state.changeByRange((range) => {
       if (ancestorNamed(tree, range.head, CODE, 1)) return { range };
       const alt = state.sliceDoc(range.from, range.to).trim();
-      const insert = `![${alt || ALT_PLACEHOLDER}](${URL_PLACEHOLDER})`;
+      const insert = `![${alt || imageAlt}](${url})`;
       const changes = state.changes({ from: range.from, to: range.to, insert });
       const select = alt
-        ? { from: range.from + insert.length - URL_PLACEHOLDER.length - 1, length: URL_PLACEHOLDER.length }
-        : { from: range.from + "![".length, length: ALT_PLACEHOLDER.length };
+        ? { from: range.from + insert.length - url.length - 1, length: url.length }
+        : { from: range.from + "![".length, length: imageAlt.length };
       return { changes, range: EditorSelection.range(select.from, select.from + select.length) };
     });
     return result.changes.empty ? null : result;

@@ -5,10 +5,13 @@ import { EditorView } from "@codemirror/view";
 export type HookResult = string | void | Promise<string | void>;
 
 /**
- * Called when the clipboard, or a drop, holds HTML. Return the Markdown to
- * insert, or nothing for the plain text. The package never parses HTML.
+ * Called when the clipboard holds HTML or files, such as a screenshot, and
+ * when a drop holds HTML. `html` is empty when there's none, and `files` is
+ * empty for a drop, which gives files to the drop hook. Return the Markdown to
+ * insert, or nothing for the editor's own handling: the plain text, if any.
+ * The package never parses HTML.
  */
-export type PasteHook = (input: { readonly html: string; readonly text: string }) => HookResult;
+export type PasteHook = (input: { readonly html: string; readonly text: string; readonly files: readonly File[] }) => HookResult;
 
 /**
  * Called when files are dropped, with the doc position they were dropped at.
@@ -82,10 +85,14 @@ export function pasteAndDrop(onPaste?: PasteHook, onDrop?: DropHook): Extension 
     pending,
     EditorView.domEventHandlers({
       paste(event, view) {
-        const html = event.clipboardData?.getData("text/html") ?? "";
-        if (!onPaste || !html) return false;
-        const text = event.clipboardData?.getData("text/plain") ?? "";
-        const result = onPaste({ html, text });
+        const data = event.clipboardData;
+        if (!onPaste || !data) return false;
+        const html = data.getData("text/html");
+        // A clipboard made in script can come without files.
+        const files = [...(data.files ?? [])];
+        if (!html && files.length === 0) return false;
+        const text = data.getData("text/plain");
+        const result = onPaste({ html, text, files });
         if (result === undefined) return false;
         event.preventDefault();
         const { from, to } = view.state.selection.main;
@@ -108,7 +115,7 @@ export function pasteAndDrop(onPaste?: PasteHook, onDrop?: DropHook): Extension 
         const html = data.getData("text/html");
         if (files.length === 0 && html && onPaste) {
           const text = data.getData("text/plain");
-          const result = onPaste({ html, text });
+          const result = onPaste({ html, text, files });
           if (result === undefined) return false;
           event.preventDefault();
           deliver(view, position, position, result, text, "input.drop");
