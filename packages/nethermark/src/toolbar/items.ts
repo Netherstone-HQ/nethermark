@@ -19,6 +19,8 @@ export type ToolbarButton = {
   readonly shortcut?: readonly string[];
   /** Always in the More menu, never on the bar. */
   readonly inMore?: boolean;
+  /** Stays enabled in a read-only editor, for a command that doesn't edit the doc. */
+  readonly enabledWhenReadOnly?: boolean;
 };
 
 /** A button that opens a menu of items. */

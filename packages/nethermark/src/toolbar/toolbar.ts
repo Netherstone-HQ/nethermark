@@ -417,11 +417,11 @@ class ToolbarView {
         const active = String(command.isActive(state));
         el.setAttribute(el.getAttribute("role") === "menuitemcheckbox" ? "aria-checked" : "aria-pressed", active);
       }
-      // Every built-in command edits, so all of them wait while the editor is read-only.
-      el.disabled = readOnly;
+      // Every built-in command edits, so they wait while the editor is read-only.
+      el.disabled = readOnly && !button.enabledWhenReadOnly;
     }
-    for (const slot of this.slots) if (slot.kind === "menu") slot.menu.trigger.disabled = readOnly;
-    this.more.trigger.disabled = readOnly;
+    // A menu opens while any of its items can run.
+    for (const menu of this.menus()) menu.trigger.disabled = menu.entries.every((entry) => entry.el.disabled);
   }
 
   /**
@@ -535,7 +535,9 @@ class ToolbarView {
     if (relabel) this.relabel(update.state);
     const facets = update.startState.facet(shortcutsFacet) !== update.state.facet(shortcutsFacet)
       || update.startState.facet(themeFacet) !== update.state.facet(themeFacet);
-    if (relabel || update.docChanged || update.selectionSet || facets || update.startState.readOnly !== update.state.readOnly) {
+    // Effects can change a command's pressed state without touching the doc.
+    const effects = update.transactions.some((tr) => tr.effects.length > 0);
+    if (relabel || update.docChanged || update.selectionSet || effects || facets || update.startState.readOnly !== update.state.readOnly) {
       this.sync(update.state, relabel);
     }
   }

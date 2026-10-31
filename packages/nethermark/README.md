@@ -224,7 +224,7 @@ Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pas
 
 | Item | Shape |
 | --- | --- |
-| Button | `{ command, icon, label, shortcut?, inMore? }` |
+| Button | `{ command, icon, label, shortcut?, inMore?, enabledWhenReadOnly? }` |
 | Menu | `{ menu, icon, label, visible?, inMore? }` |
 | Separator | `"separator"` |
 
@@ -232,6 +232,7 @@ Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pas
 - `icon` is an SVG string or plain text, like `H1`.
 - `shortcut` lists keys to show in the tooltip of a custom command. Built-in commands show their bound keys.
 - `inMore: true` pins the item to the More menu.
+- `enabledWhenReadOnly: true` keeps a button enabled in a read-only editor, for a command that doesn't edit the doc.
 - `visible(state)` shows the menu only while it returns `true`.
 
 `defineToolbarItem` validates an item and throws on an empty label or icon.
@@ -281,6 +282,45 @@ createMarkdownEditor({
     return `![](${url})`;
   },
 });
+```
+
+## Preview
+
+Preview is optional, and you choose the renderer. It's its own entry point, so the core bundle has none of it.
+
+```ts
+import { createMarkdownEditor, defaultToolbar } from "@netherstone/nethermark";
+import { createPreview, previewButton } from "@netherstone/nethermark/preview";
+import { marked } from "marked";
+
+const editor = createMarkdownEditor({ parent, toolbar: [...defaultToolbar, "separator", previewButton()] });
+const preview = createPreview(editor.view, { render: (markdown) => marked.parse(markdown) });
+```
+
+`createPreview(view, options)` works on any `EditorView` with the editor bundle. The editor moves into a grid with the preview, which takes the editor's height and scrolls, so give `.cm-editor` a height.
+
+| Option | Default | |
+| --- | --- | --- |
+| `render(markdown)` | required | Returns HTML, or a promise of it. |
+| `sanitize` | built-in | A function that replaces the built-in sanitizer, such as DOMPurify's `sanitize`, returning HTML or nodes. `false` turns sanitizing off. |
+| `layout` | `"split"` | `"split"` shows the preview beside the editor. `"tabs"` shows it in the editor's place. |
+| `open` | `true` | Whether the preview shows at first. |
+| `delay` | the last render's time | Milliseconds to wait after an edit before rendering. |
+| `scrollSync` | `true` | Keeps both sides scrolled to the same place. |
+| `label` | `"Preview"` | The preview region's accessible name. |
+| `onRender(dom)` | | Runs after each render, for work on the rendered DOM such as diagrams or code highlighting. |
+| `onError(error)` | `console.error` | Called when `render` or `sanitize` throws. The last good preview stays. |
+
+The handle has `dom`, `isOpen()`, `setOpen(open)`, `toggle()`, `setLayout(layout)`, `refresh()` and `destroy()`. `refresh()` renders again even when the doc hasn't changed, and returns a promise for when it's on the page.
+
+- Renders run one at a time, while the preview shows. Edits during a render wait for it, then the latest doc renders. Without `delay`, the wait after an edit is as long as the last render took.
+- The built-in sanitizer keeps the elements and attributes Markdown renders to and removes the rest: script, styles, event handlers, frames, forms, SVG and `javascript:` URLs. Links with a scheme open in a new tab with `rel="noopener noreferrer"`. Pass `sanitize: false` only for HTML from a source you trust.
+- Scroll sync reads `data-line` attributes on the rendered elements: the 0-based doc line each one starts on, as markdown-it's `token.map[0]` gives. Without them the two sides scroll on their own.
+- In tabs, the editor is read-only while the preview shows, and focus moves to the preview when the editor had it.
+- `previewButton({ label?, icon? })` is the toolbar toggle, pressed while the preview shows. It stays enabled in a read-only editor. `togglePreview` is its command, for keys:
+
+```ts
+createMarkdownEditor({ parent, commands: { togglePreview }, shortcuts: { togglePreview: ["Mod-Shift-p"] } });
 ```
 
 ## Labels
@@ -342,6 +382,7 @@ Every part has a stable `nme-` class. Class names are public API, so renaming on
 | --- | --- |
 | Editor | `nme-root`, `nme-gutter`, `nme-content` |
 | Toolbar | `nme-toolbar`, `nme-button`, `nme-separator`, `nme-more`, `nme-menu`, `nme-menu-item` |
+| Preview | `nme-panes`, `nme-preview` |
 | Lines | `nme-line-h1` to `nme-line-h6`, `nme-line-quote`, `nme-line-list`, `nme-line-task`, `nme-line-fence`, `nme-line-table` |
 | Inline | `nme-strong`, `nme-em`, `nme-strike`, `nme-code`, `nme-link`, `nme-markup` |
 | Other syntax | `nme-heading`, `nme-url`, `nme-quote`, `nme-comment`, `nme-list-marker`, `nme-task-marker`, `nme-table-border` |
