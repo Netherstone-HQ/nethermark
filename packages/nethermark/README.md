@@ -13,6 +13,8 @@ Commands read the Markdown syntax tree at the cursor before they edit:
 
 Versions are 0.x, so a minor release can include breaking API changes. See the [changelog](CHANGELOG.md).
 
+The package also has `<nether-mark>`, the editor as a [web component](#web-component), for plain HTML and forms. For React, use [`@netherstone/nethermark-react`](../nethermark-react).
+
 ## Install
 
 ```bash
@@ -65,6 +67,7 @@ The editor shows Markdown source only. Rendering a preview or converting to HTML
 | `commands` | your commands by name | none |
 | `classNames` | your classes by part | none |
 | `labels` | strings by name | English |
+| `icons` | SVG strings or text by name | Phosphor regular |
 | `onPaste` | `PasteHook` | none |
 | `onDrop` | `DropHook` | none |
 | `markdownExtensions` | Lezer Markdown extensions | none |
@@ -90,9 +93,10 @@ The editor shows Markdown source only. Rendering a preview or converting to HTML
 | `setReadOnly(on)` | Toggles read-only. Editing buttons are disabled while it's on |
 | `setShortcuts(map)` | Rebinds keys. Commands left out keep their defaults |
 | `setLabels(map)` | Replaces the labels. Ones left out go back to English |
+| `setIcons(map)` | Replaces the icons. Ones left out go back to the defaults |
 | `destroy()` | Removes the editor and toolbar from the page |
 
-`setTheme`, `setReadOnly`, `setShortcuts` and `setLabels` reconfigure CodeMirror compartments, so nothing is rebuilt. `run` throws on an unknown command name.
+`setTheme`, `setReadOnly`, `setShortcuts`, `setLabels` and `setIcons` reconfigure CodeMirror compartments, so nothing is rebuilt. `run` throws on an unknown command name.
 
 ## Commands
 
@@ -229,7 +233,7 @@ Buttons set `aria-pressed` from the syntax tree at the cursor, in one update pas
 | Separator | `"separator"` |
 
 - `command` is a command name or a command.
-- `icon` is an SVG string or plain text, like `H1`.
+- `icon` is an SVG string or plain text, like `H1`. Built-in items take theirs from the `icons` option.
 - `shortcut` lists keys to show in the tooltip of a custom command. Built-in commands show their bound keys.
 - `inMore: true` pins the item to the More menu.
 - `enabledWhenReadOnly: true` keeps a button enabled in a read-only editor, for a command that doesn't edit the doc.
@@ -346,11 +350,93 @@ editor.setLabels({ bold: "Fett" });
 
 Your own toolbar items keep the `label` you give them. `createToolbar` reads the labels from the editor state, so it follows `setLabels` too.
 
+## Icons
+
+The toolbar icons are [Phosphor](https://phosphoricons.com) icons in the regular weight. `icons` replaces any of them with an SVG string or text. Names left out keep their defaults, which `defaultIcons` exports.
+
+```ts
+createMarkdownEditor({ parent, icons: { bold: "<svg>…</svg>", more: "⋯" } });
+
+editor.setIcons({ bold: "B" });
+```
+
+Every Phosphor weight is a full set to pass as is:
+
+```ts
+import { icons } from "@netherstone/nethermark/icons/bold";
+
+createMarkdownEditor({ parent, icons });
+```
+
+The weights are `regular`, `fill`, `bold`, `light` and `thin`, each at `@netherstone/nethermark/icons/<weight>`. Only the weight you import is bundled.
+
+| Names | What they draw |
+| --- | --- |
+| One per built-in toolbar button, by command name, such as `bold`, `heading1`, `table` | Its button |
+| `more`, `tableMenu`, `preview` | The More menu, the table menu, the preview toggle |
+| `addRowAbove`, `addRowBelow`, `addColumnLeft`, `addColumnRight`, `deleteRow`, `deleteColumn`, `alignColumnLeft`, `alignColumnCenter`, `alignColumnRight`, `formatTable` | The table menu's items. These default to text, like `↑` |
+
+SVG icons should use `currentColor` so they follow the theme. The package sizes them with the `iconSize` token through the `nme-icon` class. Text icons get `nme-icon-text`.
+
+## Web component
+
+`<nether-mark>` is the editor as a form-associated custom element. Importing `@netherstone/nethermark/element` defines the tag.
+
+```html
+<script type="module">
+  import "@netherstone/nethermark/element";
+</script>
+
+<form>
+  <label for="body">Body</label>
+  <nether-mark id="body" name="body" theme="auto" required value="# Hello"></nether-mark>
+</form>
+```
+
+It works like a `<textarea>`:
+
+- Its value goes in the form's data under its `name`. Form reset, `required` and `checkValidity()` work as on any field.
+- It fires `input` after each edit and `change` when focus leaves after an edit.
+- It takes its accessible name from its `<label>`, or from `aria-label`.
+- `disabled` on the element or a `<fieldset>` around it disables it.
+
+It renders in the light DOM, so page CSS and the `nme` layer style it as they do the vanilla editor. The editor is built when the element joins the page and destroyed when it leaves. Moving it keeps the editor and its undo history.
+
+| Attribute | Property | |
+| --- | --- | --- |
+| `value` | `defaultValue` | The starting value, and the value after a form reset. The `value` property is the current doc |
+| `name`, `placeholder` | same | |
+| `theme` | `theme` | `light`, `dark` or `auto`. The property also takes a `Theme` or `{ light, dark }` |
+| `readonly`, `disabled`, `required` | `readOnly`, `disabled`, `required` | |
+| `aria-label` | | |
+| `line-numbers`, `line-wrapping`, `toolbar` | `lineNumbers`, `lineWrapping`, `toolbar` | On unless set to `"false"` |
+
+The other options are properties only: `strings`, `icons`, `shortcuts`, `commands`, `classNames`, `toolbarItems`, `extensions`, `markdownExtensions`, `onPaste`, `onDrop`, `preview` and `requiredMessage`.
+
+- `strings` is the `labels` option. On a form field, `labels` is the list of its `<label>` elements.
+- `toolbarItems` is the `toolbar` option's items. The `toolbar` attribute only shows or hides the toolbar.
+- `preview` takes the [preview](#preview) options, and adds the toggle to the default toolbar.
+- `theme`, `strings`, `icons`, `shortcuts`, `readonly`, `aria-label`, `onPaste` and `onDrop` change in place. A change to any other option builds the editor again, keeping its value.
+- `editor` is the [editor handle](#the-editor-handle) while the element is on the page, and `previewHandle` the preview's.
+
+```ts
+import { marked } from "marked";
+
+const field = document.querySelector("nether-mark")!;
+field.strings = { bold: "Gras" };
+field.preview = { render: (markdown) => marked.parse(markdown) };
+field.addEventListener("input", () => console.log(field.value));
+```
+
+To use another tag name, extend the class: `customElements.define("my-editor", class extends NetherMarkElement {})`.
+
 ## Themes
 
 A theme is a flat object of tokens: colors, fonts and sizes. Tokens are written as `--nme-` custom properties on the editor root, and the package's CSS reads only those properties.
 
 `themes.light` and `themes.dark` are neutral presets. Their text and syntax colors pass WCAG AA (4.5:1), checked by a test.
+
+The tokens are set inline on the editor root, so CSS variables set by the host don't override them. Theme through the `theme` option or `setTheme`, starting from a preset with `extendTheme`.
 
 `extendTheme(base, overrides)` returns a new theme with some tokens replaced:
 
@@ -390,6 +476,19 @@ Every part has a stable `nme-` class. Class names are public API, so renaming on
 Pressed buttons carry `aria-pressed="true"`.
 
 All package CSS sits in `@layer nme`, so unlayered host rules win without `!important`. The exception is the rules that replace CodeMirror's own unlayered defaults: selection, cursor, active line, gutters and focus outline. Override those through tokens, or with a more specific selector such as `.nme-root .cm-gutters`. The package sets no inline styles besides the custom properties on the root.
+
+### CSS layers and Tailwind
+
+The `nme` layer is added after the page's own stylesheets, so it sits above a host's base layer and keeps its look on pages with a reset, like Tailwind 4's preflight.
+
+Unlayered host CSS still wins. Utility classes in a layer, like Tailwind's, need the order named first, so they come after `nme`:
+
+```css
+@layer theme, base, nme, components, utilities;
+@import "tailwindcss";
+```
+
+### Class names
 
 `classNames` adds your classes to parts, keyed by class name without the `nme-` prefix:
 

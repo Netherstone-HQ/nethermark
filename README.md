@@ -8,11 +8,13 @@ Versions are 0.x, so a minor release can include breaking API changes.
 
 ## Packages
 
-| Package | Description |
+| Package | Usage |
 | --- | --- |
-| [`@netherstone/nethermark`](packages/nethermark) | The editor, toolbar and themes, in plain TypeScript with no framework dependency. [npm](https://www.npmjs.com/package/@netherstone/nethermark) |
+| [`@netherstone/nethermark`](packages/nethermark) | Full control from JavaScript or TypeScript, with no framework. [npm](https://www.npmjs.com/package/@netherstone/nethermark) |
+| [`<nether-mark>`](packages/nethermark#web-component), from `@netherstone/nethermark/element` | Plain HTML, Vue, Svelte, Angular, and forms that used a `<textarea>`. It's an entry point of the package above |
+| [`@netherstone/nethermark-react`](packages/nethermark-react) | React 18 and 19. On React 19 the web component works too |
 
-Usage, options and the full API are in the [package README](packages/nethermark/README.md).
+Usage, options and the full API are in each package's README.
 
 ## Development
 
@@ -33,12 +35,18 @@ pnpm test:browser
 | `pnpm typecheck` | TypeScript in every package |
 | `pnpm build` | Builds every package to `dist` |
 | `pnpm test` | Vitest unit tests. Commands are tested on `EditorState` alone, without a DOM |
-| `pnpm test:browser` | Playwright tests in Chromium, Firefox and WebKit |
+| `pnpm test:browser` | Playwright tests in Chromium, Firefox and WebKit, and the React tests in Chromium |
 
 Install the browsers before the first browser test run:
 
 ```bash
 pnpm --filter @netherstone/nethermark exec playwright install chromium firefox webkit
+```
+
+The React tests run on React 19. Set `REACT=18` to run them on React 18:
+
+```bash
+REACT=18 pnpm --filter @netherstone/nethermark-react test:browser
 ```
 
 ## Releases
