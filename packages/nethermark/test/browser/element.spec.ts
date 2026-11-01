@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mod } from "./keys.js";
 
 const field = (page: Page) => page.locator("nether-mark");
 const content = (page: Page) => page.locator("nether-mark .cm-content");
@@ -23,7 +24,7 @@ test("takes its name from its label, and a label click focuses the text", async 
 
 test("fires input per edit and change on leaving, and the form sends the value", async ({ page }) => {
   await content(page).click();
-  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press(`${await mod(page)}+End`);
   await page.keyboard.type("ed");
   expect(await page.evaluate(() => window.events)).toEqual(["input", "input"]);
   await page.locator("#after").focus();
@@ -90,7 +91,7 @@ test("required, readonly and disabled act as on a textarea", async ({ page }) =>
 
 test("is destroyed when taken out, keeps its editor when moved, and rebuilds with its value", async ({ page }) => {
   await content(page).click();
-  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press(`${await mod(page)}+End`);
   await page.keyboard.type("!");
   // A move in one go keeps the same editor, undo history included.
   const same = await page.evaluate(async () => {
@@ -101,7 +102,7 @@ test("is destroyed when taken out, keeps its editor when moved, and rebuilds wit
   });
   expect(same).toBe(true);
   await content(page).click();
-  await page.keyboard.press("ControlOrMeta+z");
+  await page.keyboard.press(`${await mod(page)}+z`);
   await expect(content(page)).toHaveText("start");
   await page.keyboard.type("?");
 
@@ -136,20 +137,21 @@ test("theme switches live, and strings and shortcuts pass through", async ({ pag
 
   await page.evaluate(() => (window.field.shortcuts = { bold: ["Mod-j"] }));
   await content(page).click();
-  await page.keyboard.press("ControlOrMeta+a");
-  await page.keyboard.press("ControlOrMeta+j");
+  await page.keyboard.press(`${await mod(page)}+a`);
+  await page.keyboard.press(`${await mod(page)}+j`);
   await expect(content(page)).toHaveText("**start**");
 });
 
 test("passes paste to the onPaste property", async ({ page }) => {
   await page.evaluate(() => (window.field.onPaste = ({ html }) => (html ? "**pasted**" : undefined)));
   await content(page).click();
-  await page.keyboard.press("ControlOrMeta+End");
-  await page.evaluate(() => {
-    const data = new DataTransfer();
-    data.setData("text/html", "<b>pasted</b>");
-    data.setData("text/plain", "pasted");
-    document.querySelector("nether-mark .cm-content")!.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true }));
+  await page.keyboard.press(`${await mod(page)}+End`);
+  // A script-made clipboard, as the editor's paste tests use: Firefox drops clipboardData given to the constructor.
+  await content(page).evaluate((el) => {
+    const data: Record<string, string> = { "text/html": "<b>pasted</b>", "text/plain": "pasted" };
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { getData: (type: string) => data[type] ?? "", types: Object.keys(data) } });
+    el.dispatchEvent(event);
   });
   await expect(content(page)).toHaveText("start**pasted**");
 });
