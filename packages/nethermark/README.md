@@ -4,7 +4,7 @@ A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/).
 
 Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Writers don't need to know Markdown syntax. Formatting commands toggle on and off.
 
-Ships neutral light and dark themes. Change colors, fonts and sizes with `extendTheme`, or style any part with CSS through its `nme-` class.
+Ships Netherstone's Light and Dark themes. Change colors, fonts and sizes with `extendTheme`, or style any part with CSS through its `nme-` class.
 
 Commands read the Markdown syntax tree at the cursor before they edit:
 
@@ -434,7 +434,7 @@ To use another tag name, extend the class: `customElements.define("my-editor", c
 
 A theme is a flat object of tokens: colors, fonts and sizes. Tokens are written as `--nme-` custom properties on the editor root, and the package's CSS reads only those properties.
 
-`themes.light` and `themes.dark` are neutral presets. Their text and syntax colors pass WCAG AA (4.5:1), checked by a test.
+`themes.light` and `themes.dark` are the Netherstone app's Light and Dark colors. Their text and syntax colors pass WCAG AA (4.5:1), checked by a test.
 
 The tokens are set inline on the editor root, so CSS variables set by the host don't override them. Theme through the `theme` option or `setTheme`, starting from a preset with `extendTheme`.
 
