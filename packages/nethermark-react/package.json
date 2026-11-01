@@ -4,6 +4,7 @@
   "description": "A React component for nethermark, the small Markdown source editor built on CodeMirror 6",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://netherstone.app/nethermark",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Netherstone-HQ/nethermark.git",

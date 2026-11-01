@@ -1,6 +1,6 @@
 # Nethermark
 
-A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/).
+A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/). [Demo and docs](https://netherstone.app/nethermark).
 
 Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Ships Netherstone's Light and Dark themes, and every part can be restyled with tokens or CSS.
 

@@ -1,6 +1,6 @@
 # @netherstone/nethermark
 
-A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/).
+A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/). [Demo and docs](https://netherstone.app/nethermark).
 
 Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Writers don't need to know Markdown syntax. Formatting commands toggle on and off.
 
@@ -47,7 +47,7 @@ const editor = createMarkdownEditor({
 
 This renders the toolbar and editor into `#editor`. Styles are injected at runtime, so there's no CSS file to import.
 
-The editor shows Markdown source only. Rendering a preview or converting to HTML is up to the host.
+The editor shows Markdown source only. For a preview, add the optional [preview](#preview) with your own renderer.
 
 ## Options
 
