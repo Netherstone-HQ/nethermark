@@ -1,7 +1,6 @@
 {
   "name": "@netherstone/nethermark-react",
-  "version": "0.1.2",
-  "private": true,
+  "version": "0.2.0",
   "description": "A React component for nethermark, the small Markdown source editor built on CodeMirror 6",
   "license": "MIT",
   "type": "module",
