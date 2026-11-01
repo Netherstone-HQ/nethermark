@@ -1,2 +1,9 @@
 packages:
   - packages/*
+
+# The React package tests on React 18 too, from react-18 and react-dom-18
+# installed beside 19. Its test config points every react import at react-18,
+# so react-dom 18 never runs with the React 19 it's linked to here.
+peerDependencyRules:
+  allowedVersions:
+    react-dom@18>react: "19"

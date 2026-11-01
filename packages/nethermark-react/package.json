@@ -1,0 +1,63 @@
+{
+  "name": "@netherstone/nethermark-react",
+  "version": "0.1.2",
+  "private": true,
+  "description": "A React component for nethermark, the small Markdown source editor built on CodeMirror 6",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Netherstone-HQ/nethermark.git",
+    "directory": "packages/nethermark-react"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "codemirror",
+    "react"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./preview": {
+      "types": "./dist/preview.d.ts",
+      "default": "./dist/preview.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:browser": "vitest run"
+  },
+  "peerDependencies": {
+    "@codemirror/state": "^6.7.0",
+    "@codemirror/view": "^6.43.0",
+    "@netherstone/nethermark": "workspace:^",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@netherstone/nethermark": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/browser-playwright": "5.0.5",
+    "playwright": "1.63.0",
+    "react": "^19.3.1",
+    "react-18": "npm:react@18.3.1",
+    "react-dom": "^19.3.1",
+    "react-dom-18": "npm:react-dom@18.3.1",
+    "vitest": "5.0.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

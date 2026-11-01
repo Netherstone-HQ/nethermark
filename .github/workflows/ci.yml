@@ -23,6 +23,24 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
+  react:
+    name: React tests (${{ matrix.react }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        react: [18, 19]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+          require-lockfile: true
+      - run: pnpm --filter @netherstone/nethermark-react exec playwright install --with-deps chromium
+      - run: pnpm --filter @netherstone/nethermark-react test:browser
+        env:
+          REACT: ${{ matrix.react }}
+
   browser:
     name: Browser tests (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
