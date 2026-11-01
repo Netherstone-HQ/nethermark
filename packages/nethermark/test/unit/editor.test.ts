@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, test } from "vitest";
 import { commands, defineCommand, markdownEditor } from "../../src/index.js";
 import { commandNamed } from "../../src/commands/registry.js";
@@ -11,6 +11,15 @@ const stateWith = (doc: string, options: Parameters<typeof markdownEditor>[0]) =
   EditorState.create({ doc, extensions: markdownEditor(options) });
 
 describe("markdownEditor", () => {
+  test("multiple selections are on, and Bold applies to each", () => {
+    const state = stateWith("one two", {});
+    expect(state.facet(EditorState.allowMultipleSelections)).toBe(true);
+    const selected = state.update({ selection: EditorSelection.create([EditorSelection.range(0, 3), EditorSelection.range(4, 7)]) }).state;
+    let doc = "";
+    commands.bold({ state: selected, dispatch: (tr) => (doc = tr.state.doc.toString()) });
+    expect(doc).toBe("**one** **two**");
+  });
+
   test("read-only", () => {
     expect(stateWith("", { readOnly: true }).readOnly).toBe(true);
     expect(stateWith("", {}).readOnly).toBe(false);

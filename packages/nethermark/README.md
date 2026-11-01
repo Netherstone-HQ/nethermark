@@ -100,7 +100,7 @@ The editor shows Markdown source only. For a preview, add the optional [preview]
 
 ## Commands
 
-Every command applies to all selection ranges and is one undo step. Formatting commands toggle: running one again removes the formatting.
+Every command applies to all selection ranges and is one undo step. Cmd-click on macOS, or Ctrl-click elsewhere, adds a cursor. Formatting commands toggle: running one again removes the formatting.
 
 | Command | Default keys |
 | --- | --- |
