@@ -2,7 +2,9 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
 import { describe, expect, test } from "vitest";
 import { markdownHighlight } from "../../src/styles/highlight.js";
-import { styleDecorations } from "../../src/styles/lines.js";
+import { EditorState } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
+import { headingGutter, styleDecorations } from "../../src/styles/lines.js";
 import { stateOf } from "../notation.js";
 
 /** The classes on each piece of a doc, as `text: classes`. */
@@ -73,5 +75,19 @@ describe("line kinds", () => {
     const lines: number[] = [];
     set.between(0, state.doc.length, (from) => void lines.push(state.doc.lineAt(from).number));
     expect(lines).toEqual([2]);
+  });
+});
+
+describe("heading gutter classes", () => {
+  test("marks the gutter cell of each heading line with its level", () => {
+    const doc = "# One\n\ntext\n\n### Three\n\nSetext\n---\n\n> ## Quoted";
+    const state = EditorState.create({ doc, extensions: [markdown(), headingGutter] });
+    ensureSyntaxTree(state, state.doc.length);
+    const fresh = state.update({}).state;
+    const out: string[] = [];
+    fresh.field(headingGutter).between(0, fresh.doc.length, (from, _to, marker) => {
+      out.push(`${fresh.doc.lineAt(from).number}: ${marker.elementClass}`);
+    });
+    expect(out).toEqual(["1: nme-gutter-h1", "5: nme-gutter-h3", "7: nme-gutter-h2", "8: nme-gutter-h2", "10: nme-gutter-h2"]);
   });
 });

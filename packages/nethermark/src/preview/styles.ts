@@ -15,7 +15,8 @@ const headings = [1, 2, 3, 4, 5, 6].map((level) => `.nme-preview h${level} { fon
  *
  * The preview draws its own type, spacing and list markers rather than
  * leaning on the browser's defaults, which a host's reset, like Tailwind's
- * preflight, takes away. Spacing is in `em`, so it follows the theme's sizes.
+ * preflight, takes away. Spacing is in `em`, so it follows the theme's sizes,
+ * and the text keeps a reading inset from the editor beside it.
  */
 const css = `@layer nme {
   .nme-panes {
@@ -31,7 +32,7 @@ const css = `@layer nme {
     overflow: auto;
     overscroll-behavior: contain;
     box-sizing: border-box;
-    padding: ${token("gap")};
+    padding: 1em 1.5em;
     background: ${token("background")};
     color: ${token("foreground")};
     font-family: ${token("fontFamily")};
@@ -62,26 +63,27 @@ const css = `@layer nme {
   .nme-preview a { color: ${token("link")}; text-decoration: underline; }
   .nme-preview img { max-width: 100%; height: auto; }
   .nme-preview code {
+    padding: 0.1em 0.3em;
     font-family: ${token("monoFamily")};
     color: ${token("code")};
     background: ${token("codeBackground")};
     border-radius: ${token("radius")};
   }
   .nme-preview pre {
-    padding: ${token("gap")};
+    padding: 0.75em 1em;
     overflow-x: auto;
     background: ${token("codeBackground")};
     border-radius: ${token("radius")};
   }
-  .nme-preview pre code { background: transparent; }
+  .nme-preview pre code { padding: 0; background: transparent; }
   .nme-preview blockquote {
     margin-inline: 0;
-    padding-inline-start: ${token("gap")};
+    padding-inline-start: 1em;
     border-inline-start: ${line};
     color: ${token("quote")};
   }
   .nme-preview table { border-collapse: collapse; display: block; overflow-x: auto; }
-  .nme-preview :is(th, td) { border: ${line}; padding: 0 ${token("gap")}; }
+  .nme-preview :is(th, td) { border: ${line}; padding: 0.25em 0.75em; }
   .nme-preview hr { border: none; border-top: ${token("borderWidth")} solid ${token("separator")}; }
 }`;
 

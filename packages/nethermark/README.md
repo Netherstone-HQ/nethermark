@@ -466,7 +466,7 @@ Every part has a stable `nme-` class. Class names are public API, so renaming on
 
 | Part | Classes |
 | --- | --- |
-| Editor | `nme-root`, `nme-gutter`, `nme-content` |
+| Editor | `nme-root`, `nme-gutter`, `nme-content`, `nme-gutter-h1` to `nme-gutter-h6` on line numbers beside headings |
 | Toolbar | `nme-toolbar`, `nme-button`, `nme-separator`, `nme-more`, `nme-menu`, `nme-menu-item` |
 | Preview | `nme-panes`, `nme-preview` |
 | Lines | `nme-line-h1` to `nme-line-h6`, `nme-line-quote`, `nme-line-list`, `nme-line-task`, `nme-line-fence`, `nme-line-table` |

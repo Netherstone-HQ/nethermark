@@ -20,6 +20,7 @@ import { iconsFacet, type Icons } from "../icons.js";
 import { formattingKeymap, type Shortcuts } from "../keymap.js";
 import { labelsFacet, type Labels } from "../labels.js";
 import { editorStyles, themeExtension } from "../styles/index.js";
+import { headingGutter } from "../styles/lines.js";
 import { themes } from "../theme/index.js";
 import type { Theme } from "../theme/theme.js";
 import { pasteAndDrop, type DropHook, type PasteHook } from "./paste.js";
@@ -124,7 +125,7 @@ export function buildEditor(options: MarkdownEditorOptions, root: boolean): { ex
     drawSelection(),
     dropCursor(),
     highlightActiveLine(),
-    options.lineNumbers === false ? [] : [lineNumbers(), highlightActiveLineGutter(), gutterClasses],
+    options.lineNumbers === false ? [] : [lineNumbers(), highlightActiveLineGutter(), gutterClasses, headingGutter],
     options.lineWrapping === false ? [] : EditorView.lineWrapping,
     options.placeholder ? placeholder(options.placeholder) : [],
     EditorView.contentAttributes.of({
