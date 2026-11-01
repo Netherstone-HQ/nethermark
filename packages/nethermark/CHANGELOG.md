@@ -1,5 +1,11 @@
 # @netherstone/nethermark
 
+## 0.3.1
+
+### Patch Changes
+
+- 8307333: Turn on multiple cursors. Cmd-click on macOS, or Ctrl-click elsewhere, adds a cursor, and every command applies to all of them.
+
 ## 0.3.0
 
 ### Minor Changes
