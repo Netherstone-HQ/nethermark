@@ -23,6 +23,26 @@
     "./preview": {
       "types": "./dist/preview/index.d.ts",
       "default": "./dist/preview/index.js"
+    },
+    "./icons/regular": {
+      "types": "./dist/icons/regular.d.ts",
+      "default": "./dist/icons/regular.js"
+    },
+    "./icons/fill": {
+      "types": "./dist/icons/fill.d.ts",
+      "default": "./dist/icons/fill.js"
+    },
+    "./icons/bold": {
+      "types": "./dist/icons/bold.d.ts",
+      "default": "./dist/icons/bold.js"
+    },
+    "./icons/light": {
+      "types": "./dist/icons/light.d.ts",
+      "default": "./dist/icons/light.js"
+    },
+    "./icons/thin": {
+      "types": "./dist/icons/thin.d.ts",
+      "default": "./dist/icons/thin.js"
     }
   },
   "files": [
@@ -64,7 +84,13 @@
     "@lezer/markdown": "^1.8.1",
     "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
   },

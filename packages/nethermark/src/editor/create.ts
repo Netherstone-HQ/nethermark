@@ -3,6 +3,7 @@ import { Compartment, EditorState, Text } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { classFor } from "../classes.js";
 import { commandNamed } from "../commands/registry.js";
+import { iconsFacet, type Icons } from "../icons.js";
 import { formattingKeymap, type Shortcuts } from "../keymap.js";
 import { labelsFacet, type Labels } from "../labels.js";
 import { themeFacet } from "../styles/index.js";
@@ -36,6 +37,8 @@ export type MarkdownEditor = {
   setShortcuts(shortcuts: Shortcuts): void;
   /** Replaces the labels; ones left out go back to their defaults. */
   setLabels(labels: Labels): void;
+  /** Replaces the icons; ones left out go back to their defaults. */
+  setIcons(icons: Icons): void;
   /** Takes the editor and toolbar out of the page. */
   destroy(): void;
 };
@@ -92,6 +95,7 @@ export function createMarkdownEditor(options: CreateMarkdownEditorOptions): Mark
     setShortcuts: (shortcuts) =>
       view.dispatch({ effects: compartments.shortcuts.reconfigure(formattingKeymap(shortcuts, options.commands ?? {})) }),
     setLabels: (labels) => view.dispatch({ effects: compartments.labels.reconfigure(labelsFacet.of(labels)) }),
+    setIcons: (icons) => view.dispatch({ effects: compartments.icons.reconfigure(iconsFacet.of(icons)) }),
     destroy: () => {
       toolbar?.destroy();
       view.destroy();

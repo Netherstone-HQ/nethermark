@@ -1,0 +1,4 @@
+/* A host's Tailwind 4 with nme placed between its base and utility layers, so its utility classes beat the package's CSS. */
+@layer theme, base, nme, components, utilities;
+@import "tailwindcss";
+@source "./tailwind.ts";

@@ -3,8 +3,8 @@ import type { MarkdownCommand } from "../commands/command.js";
 import type { CommandName } from "../commands/index.js";
 import { commandNamed } from "../commands/registry.js";
 import { inTable } from "../commands/tables.js";
+import { defaultIcons, type IconName } from "../icons.js";
 import { defaultLabels, type LabelName } from "../labels.js";
-import { icons } from "./icons.js";
 
 /**
  * A button that runs a command. The icon is an SVG string, or plain text,
@@ -52,65 +52,80 @@ export const isMenu = (item: ToolbarItem): item is ToolbarMenu => typeof item ==
 /** The built-in items, with the label each one shows, so the `labels` option reaches them. */
 const builtInLabels = new WeakMap<ToolbarButton | ToolbarMenu, LabelName>();
 
+/** The built-in items, with the icon each one draws, so the `icons` option reaches them. */
+const builtInIcons = new WeakMap<ToolbarButton | ToolbarMenu, IconName>();
+
 /** The label an item shows: a built-in item's from the editor's labels, a host's own item's as given. */
 export function labelOf(item: ToolbarButton | ToolbarMenu, labels: Readonly<Record<LabelName, string>>): string {
   const name = builtInLabels.get(item);
   return name ? labels[name] : item.label;
 }
 
-function builtIn<T extends ToolbarButton | ToolbarMenu>(name: LabelName, item: T): T {
-  builtInLabels.set(item, name);
+/** The icon an item draws: a built-in item's from the editor's icons, a host's own item's as given. */
+export function iconOf(item: ToolbarButton | ToolbarMenu, icons: Readonly<Record<IconName, string>>): string {
+  const name = builtInIcons.get(item);
+  return name ? icons[name] : item.icon;
+}
+
+/** Marks an item as drawing a named icon, so the `icons` option replaces it. */
+export function withIcon<T extends ToolbarButton | ToolbarMenu>(name: IconName, item: T): T {
+  builtInIcons.set(item, name);
   return item;
 }
 
-const button = (command: CommandName & LabelName, icon: string, inMore?: boolean): ToolbarButton =>
-  builtIn(command, defineToolbarItem({ command, icon, label: defaultLabels[command], ...(inMore && { inMore }) }));
+function builtIn<T extends ToolbarButton | ToolbarMenu>(name: LabelName & IconName, item: T): T {
+  builtInLabels.set(item, name);
+  return withIcon(name, item);
+}
+
+const button = (command: CommandName & LabelName & IconName, inMore?: boolean): ToolbarButton =>
+  builtIn(command, defineToolbarItem({ command, icon: defaultIcons[command], label: defaultLabels[command], ...(inMore && { inMore }) }));
 
 /** The row, column and alignment commands, shown while the cursor is in a table. */
 export const tableMenu: ToolbarMenu = builtIn("tableMenu", defineToolbarItem({
-  icon: icons.tableMenu,
+  icon: defaultIcons.tableMenu,
   label: defaultLabels.tableMenu,
   visible: inTable,
   menu: [
-    button("addRowAbove", "↑"),
-    button("addRowBelow", "↓"),
-    button("addColumnLeft", "←"),
-    button("addColumnRight", "→"),
+    button("addRowAbove"),
+    button("addRowBelow"),
+    button("addColumnLeft"),
+    button("addColumnRight"),
     "separator",
-    button("deleteRow", "−"),
-    button("deleteColumn", "−"),
+    button("deleteRow"),
+    button("deleteColumn"),
     "separator",
-    button("alignColumnLeft", "⇤"),
-    button("alignColumnCenter", "↔"),
-    button("alignColumnRight", "⇥"),
+    button("alignColumnLeft"),
+    button("alignColumnCenter"),
+    button("alignColumnRight"),
     "separator",
-    button("formatTable", "⌗"),
+    button("formatTable"),
   ],
 }));
 
 /** The default toolbar, in order. Headings 4 to 6 always sit in the More menu. */
 export const defaultToolbar: readonly ToolbarItem[] = Object.freeze([
-  button("bold", icons.bold),
-  button("italic", icons.italic),
-  button("strikethrough", icons.strikethrough),
-  button("inlineCode", icons.inlineCode),
+  button("bold"),
+  button("italic"),
+  button("strikethrough"),
+  button("inlineCode"),
   "separator",
-  button("heading1", icons.heading1),
-  button("heading2", icons.heading2),
-  button("heading3", icons.heading3),
+  button("heading1"),
+  button("heading2"),
+  button("heading3"),
   "separator",
-  button("bulletList", icons.bulletList),
-  button("orderedList", icons.orderedList),
-  button("taskList", icons.taskList),
-  button("quote", icons.quote),
+  button("bulletList"),
+  button("orderedList"),
+  button("taskList"),
+  button("quote"),
   "separator",
-  button("link", icons.link),
-  button("image", icons.image),
-  button("codeBlock", icons.codeBlock),
-  button("table", icons.table),
+  button("link"),
+  button("image"),
+  button("codeBlock"),
+  button("table"),
   tableMenu,
-  button("horizontalRule", icons.horizontalRule),
-  button("heading4", icons.heading4, true),
-  button("heading5", icons.heading5, true),
-  button("heading6", icons.heading6, true),
+  button("horizontalRule"),
+  button("heading4", true),
+  button("heading5", true),
+  button("heading6", true),
 ]);
