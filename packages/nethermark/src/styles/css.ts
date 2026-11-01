@@ -10,6 +10,15 @@ export function headingSize(level: number): string {
 const headings = [1, 2, 3, 4, 5, 6].map((level) => `.cm-editor .nme-line-h${level} { font-size: ${headingSize(level)}; }`).join("\n  ");
 
 /**
+ * A line number beside a heading shares a line box with an empty character at
+ * the heading's size, so the number sits on the heading's baseline instead of
+ * at the top of the taller line.
+ */
+const headingGutters = [1, 2, 3, 4, 5, 6]
+  .map((level) => `.cm-editor .nme-gutter-h${level}::before { content: "\\200b"; font-family: ${token("fontFamily")}; font-size: ${headingSize(level)}; }`)
+  .join("\n  ");
+
+/**
  * The package's own CSS, in `@layer nme`, so any host rule beats it without
  * `!important`. Every value is a theme token.
  */
@@ -34,6 +43,7 @@ const css = `@layer nme {
   .cm-editor .nme-list-marker, .cm-editor .nme-list-marker .nme-markup { color: ${token("listMarker")}; }
   .cm-editor .nme-table-border, .cm-editor .nme-table-border .nme-markup { color: ${token("tableBorder")}; }
   ${headings}
+  ${headingGutters}
   .cm-editor .nme-line-fence { font-family: ${token("monoFamily")}; background-color: ${token("codeBackground")}; }
   .cm-editor .nme-line-fence .nme-code { background-color: transparent; border-radius: 0; }
   .cm-editor .nme-line-table { font-family: ${token("monoFamily")}; }
@@ -94,6 +104,7 @@ export const codeMirrorStyles = EditorView.theme({
     border: "none",
     borderRight: `${token("borderWidth")} solid ${token("border")}`,
   },
-  ".cm-activeLineGutter": { backgroundColor: token("activeLine") },
+  // The current line's number takes the text color, so the rest read as background.
+  ".cm-activeLineGutter": { backgroundColor: token("activeLine"), color: token("foreground") },
   ".cm-placeholder": { color: token("markup") },
 });

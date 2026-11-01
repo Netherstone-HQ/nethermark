@@ -1,6 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState } from "@codemirror/state";
-import { Decoration, ViewPlugin, type DecorationSet, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { RangeSetBuilder, StateField, type EditorState, type RangeSet } from "@codemirror/state";
+import { Decoration, GutterMarker, ViewPlugin, gutterLineClass, type DecorationSet, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { classFor, classNamesFacet, type Part } from "../classes.js";
 
 /** The part each kind of block makes of every line it spans. */
@@ -81,3 +81,47 @@ export const lineStyles = ViewPlugin.fromClass(
   },
   { decorations: (plugin) => plugin.decorations },
 );
+
+/** Puts `nme-gutter-h<n>` on the gutter cells beside an H<n> line, so their numbers can sit on its baseline. */
+class HeadingGutterMarker extends GutterMarker {
+  constructor(readonly level: number) {
+    super();
+    this.elementClass = `nme-gutter-h${level}`;
+  }
+  override eq(other: GutterMarker): boolean {
+    return other instanceof HeadingGutterMarker && other.level === this.level;
+  }
+}
+
+const headingMarkers = [1, 2, 3, 4, 5, 6].map((level) => new HeadingGutterMarker(level));
+const HEADING = /^(?:ATX|Setext)Heading(\d)$/;
+/** Blocks that never hold a heading, skipped so the walk stays at block level. */
+const LEAF_BLOCKS = new Set(["Paragraph", "FencedCode", "CodeBlock", "Table", "HTMLBlock", "LinkReference", "HorizontalRule"]);
+
+/** The gutter classes for every heading line the parser has reached. */
+function headingGutters(state: EditorState): RangeSet<GutterMarker> {
+  const builder = new RangeSetBuilder<GutterMarker>();
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      const level = HEADING.exec(node.name)?.[1];
+      if (level) {
+        const marker = headingMarkers[Number(level) - 1]!;
+        for (let pos = node.from; pos <= node.to; ) {
+          const line = state.doc.lineAt(pos);
+          builder.add(line.from, line.from, marker);
+          pos = line.to + 1;
+        }
+        return false;
+      }
+      return !LEAF_BLOCKS.has(node.name);
+    },
+  });
+  return builder.finish();
+}
+
+/** Heading classes for the line-number gutter, kept in step with the syntax tree. */
+export const headingGutter = StateField.define<RangeSet<GutterMarker>>({
+  create: headingGutters,
+  update: (markers, tr) => (syntaxTree(tr.startState) === syntaxTree(tr.state) ? markers : headingGutters(tr.state)),
+  provide: (field) => gutterLineClass.from(field),
+});
