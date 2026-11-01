@@ -126,7 +126,7 @@ test("changes the toolbar and line numbers from attributes, in one rebuild", asy
   await expect(content(page)).toHaveText("start");
 });
 
-test("theme switches live, and strings and shortcuts pass through", async ({ page }) => {
+test("theme switches live, and strings, icons and shortcuts pass through", async ({ page }) => {
   const background = () => page.locator("nether-mark .nme-root").evaluate((el) => getComputedStyle(el).getPropertyValue("--nme-background"));
   const light = await background();
   await page.evaluate(() => (window.field.theme = "dark"));
@@ -134,6 +134,9 @@ test("theme switches live, and strings and shortcuts pass through", async ({ pag
 
   await page.evaluate(() => (window.field.strings = { bold: "Gras" }));
   await expect(page.getByRole("button", { name: "Gras" })).toBeVisible();
+
+  await page.evaluate(() => (window.field.icons = { bold: "Gr" }));
+  await expect(page.getByRole("button", { name: "Gras" }).locator(".nme-icon-text")).toHaveText("Gr");
 
   await page.evaluate(() => (window.field.shortcuts = { bold: ["Mod-j"] }));
   await content(page).click();

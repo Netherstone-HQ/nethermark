@@ -6,6 +6,7 @@ import { createMarkdownEditor, type MarkdownEditor } from "../editor/create.js";
 import type { ThemeOption } from "../editor/editor.js";
 import type { DropHook, PasteHook } from "../editor/paste.js";
 import type { Shortcuts } from "../keymap.js";
+import type { Icons } from "../icons.js";
 import type { Labels } from "../labels.js";
 import { createPreview, previewButton, type Preview, type PreviewOptions } from "../preview/preview.js";
 import { themes } from "../theme/index.js";
@@ -37,7 +38,7 @@ function themeFromAttribute(value: string | null): ThemeOption {
  * `auto`, or a `Theme` object as a property), `readonly`, `disabled`,
  * `required`, `aria-label`, and `line-numbers`, `line-wrapping` and `toolbar`,
  * which are on unless set to `"false"`. The rest are properties: `strings`
- * (the `labels` option, since `labels` is the field's `<label>`s), `shortcuts`, `commands`, `classNames`, `toolbarItems`, `extensions`,
+ * (the `labels` option, since `labels` is the field's `<label>`s), `icons`, `shortcuts`, `commands`, `classNames`, `toolbarItems`, `extensions`,
  * `markdownExtensions`, `onPaste`, `onDrop` and `preview`.
  *
  * It fires `input` after each edit and `change` when focus leaves after an
@@ -76,6 +77,7 @@ export class NetherMarkElement extends Base {
 
   #theme: ThemeOption | null = null;
   #labels: Labels | undefined;
+  #icons: Icons | undefined;
   #shortcuts: Shortcuts | undefined;
   #commands: Readonly<Record<string, MarkdownCommand>> | undefined;
   #classNames: ClassNames | undefined;
@@ -168,6 +170,7 @@ export class NetherMarkElement extends Base {
       lineWrapping: on(this.getAttribute("line-wrapping")),
       toolbar: on(this.getAttribute("toolbar")) ? items : false,
       labels: this.#labels,
+      icons: this.#icons,
       shortcuts: this.#shortcuts,
       commands: this.#commands,
       classNames: this.#classNames,
@@ -417,6 +420,14 @@ export class NetherMarkElement extends Base {
   set strings(value: Labels | undefined) {
     this.#labels = value;
     this.#editor?.setLabels(value ?? {});
+  }
+  /** Icons to replace, as the `icons` option. Changes apply live. */
+  get icons(): Icons | undefined {
+    return this.#icons;
+  }
+  set icons(value: Icons | undefined) {
+    this.#icons = value;
+    this.#editor?.setIcons(value ?? {});
   }
   /** Keys, as the `shortcuts` option. Changes apply live. */
   get shortcuts(): Shortcuts | undefined {
