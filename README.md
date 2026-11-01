@@ -2,7 +2,7 @@
 
 A small Markdown source editor built on [CodeMirror 6](https://codemirror.net/).
 
-Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Ships neutral light and dark themes, and every part can be restyled with tokens or CSS.
+Covers all of CommonMark and GitHub-flavored Markdown through commands, with toolbar buttons and shortcuts for the common ones. Ships Netherstone's Light and Dark themes, and every part can be restyled with tokens or CSS.
 
 Versions are 0.x, so a minor release can include breaking API changes.
 
