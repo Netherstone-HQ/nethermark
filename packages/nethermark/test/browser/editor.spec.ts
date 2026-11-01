@@ -42,6 +42,18 @@ test("onChange fires once per change, and getValue and setValue round-trip", asy
   expect(await value(page)).toBe("abcd");
 });
 
+test("Mod-click adds a cursor, and typing goes to both", async ({ page, hasTouch }) => {
+  test.skip(hasTouch, "needs a mouse and a modifier key");
+  await create(page, { doc: "ab" });
+  const line = page.locator(".cm-line").first();
+  await line.click({ position: { x: 1, y: 5 } });
+  await page.keyboard.press("End");
+  await line.click({ modifiers: [await mod(page)], position: { x: 1, y: 5 } });
+  expect(await page.evaluate(() => window.editor!.view.state.selection.ranges.length)).toBe(2);
+  await page.keyboard.type("x");
+  expect(await value(page)).toBe("xabx");
+});
+
 test("CRLF docs come back with CRLF", async ({ page }) => {
   await create(page, { doc: "a\r\nb" });
   expect(await value(page)).toBe("a\r\nb");

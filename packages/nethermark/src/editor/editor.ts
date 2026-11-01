@@ -122,6 +122,8 @@ export function buildEditor(options: MarkdownEditorOptions, root: boolean): { ex
   const extension: Extension = [
     markdown({ base: markdownLanguage, extensions: [...(options.markdownExtensions ?? [])] }),
     history(),
+    // Cmd-click on macOS and Ctrl-click elsewhere add a cursor. Commands apply to every range.
+    EditorState.allowMultipleSelections.of(true),
     drawSelection(),
     dropCursor(),
     highlightActiveLine(),
