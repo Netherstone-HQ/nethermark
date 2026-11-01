@@ -14,7 +14,10 @@
     "editor",
     "codemirror"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/element/index.js",
+    "./src/element/index.ts"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,6 +26,10 @@
     "./preview": {
       "types": "./dist/preview/index.d.ts",
       "default": "./dist/preview/index.js"
+    },
+    "./element": {
+      "types": "./dist/element/index.d.ts",
+      "default": "./dist/element/index.js"
     },
     "./icons/regular": {
       "types": "./dist/icons/regular.d.ts",
