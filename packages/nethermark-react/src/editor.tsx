@@ -2,6 +2,7 @@ import {
   createMarkdownEditor,
   defaultToolbar,
   type CreateMarkdownEditorOptions,
+  type Icons,
   type MarkdownEditor as EditorHandle,
   type Labels,
   type Shortcuts,
@@ -47,6 +48,7 @@ type Applied = {
   readOnly: boolean | undefined;
   shortcuts: Shortcuts | undefined;
   labels: Labels | undefined;
+  icons: Icons | undefined;
   ariaLabel: string | undefined;
 };
 
@@ -105,6 +107,7 @@ class Controller {
     if (Boolean(props.readOnly) !== Boolean(applied.readOnly)) editor.setReadOnly(props.readOnly ?? false);
     if (!same(props.shortcuts, applied.shortcuts)) editor.setShortcuts(props.shortcuts ?? {});
     if (!same(props.labels, applied.labels)) editor.setLabels(props.labels ?? {});
+    if (!same(props.icons, applied.icons)) editor.setIcons(props.icons ?? {});
     if (props.ariaLabel !== applied.ariaLabel) editor.view.dispatch({ effects: this.ariaLabel.reconfigure(ariaLabelOf(props.ariaLabel)) });
     this.applied = appliedOf(props);
   }
@@ -188,10 +191,10 @@ class Controller {
 
 /**
  * The nethermark editor with its toolbar. `value`, `theme`, `readOnly`,
- * `shortcuts`, `labels` and `ariaLabel` change in place, keeping undo history
- * and the cursor, and the callbacks can change any time. A change to any
- * other option builds the editor again, keeping the doc. The ref is the
- * editor's handle, or null before it's built.
+ * `shortcuts`, `labels`, `icons` and `ariaLabel` change in place, keeping
+ * undo history and the cursor, and the callbacks can change any time. A
+ * change to any other option builds the editor again, keeping the doc. The
+ * ref is the editor's handle, or null before it's built.
  */
 export const MarkdownEditor = forwardRef<EditorHandle | null, MarkdownEditorProps>(function MarkdownEditor(props, ref) {
   const parent = useRef<HTMLDivElement>(null);
@@ -219,7 +222,7 @@ function ariaLabelOf(label: string | undefined): Extension {
 }
 
 function appliedOf(props: MarkdownEditorProps): Applied {
-  return { theme: props.theme, readOnly: props.readOnly, shortcuts: props.shortcuts, labels: props.labels, ariaLabel: props.ariaLabel };
+  return { theme: props.theme, readOnly: props.readOnly, shortcuts: props.shortcuts, labels: props.labels, icons: props.icons, ariaLabel: props.ariaLabel };
 }
 
 /**

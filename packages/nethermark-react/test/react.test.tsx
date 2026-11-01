@@ -126,6 +126,21 @@ describe("MarkdownEditor", () => {
     expect(host.querySelector("[role=toolbar]")!.getAttribute("aria-label")).toBe("Format");
   });
 
+  test("icons change in place, and the same icons written inline each render aren't a change", () => {
+    let editor: EditorHandle | null = null;
+    const ref = (handle: EditorHandle | null) => void (editor = handle);
+    const bold = () => host.querySelector('[role=toolbar] [aria-label="Bold"]')!;
+    render(<MarkdownEditor ref={ref} icons={{ bold: "B" }} />);
+    const first = editor!;
+    expect(bold().textContent).toBe("B");
+    const setIcons = vi.spyOn(first, "setIcons");
+    render(<MarkdownEditor ref={ref} icons={{ bold: "B" }} />);
+    expect(setIcons).not.toHaveBeenCalled();
+    render(<MarkdownEditor ref={ref} icons={{ bold: "G" }} />);
+    expect(editor).toBe(first);
+    expect(bold().textContent).toBe("G");
+  });
+
   test("readOnly and shortcuts change in place", () => {
     let editor: EditorHandle | null = null;
     const ref = (handle: EditorHandle | null) => void (editor = handle);
