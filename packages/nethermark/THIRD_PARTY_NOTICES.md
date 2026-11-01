@@ -1,6 +1,6 @@
 # Third-party notices
 
-The toolbar icons in `src/toolbar/icons.ts` come from [Phosphor Icons](https://phosphoricons.com), under this license:
+The icons in `src/icons/` (`regular.ts`, `fill.ts`, `bold.ts`, `light.ts` and `thin.ts`, built to `dist/icons/`) come from [Phosphor Icons](https://phosphoricons.com), under this license:
 
 ```
 MIT License

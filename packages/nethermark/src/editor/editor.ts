@@ -16,6 +16,7 @@ import {
 import { classFor, classNamesFacet, type ClassNames } from "../classes.js";
 import type { MarkdownCommand } from "../commands/command.js";
 import { commandsFacet } from "../commands/registry.js";
+import { iconsFacet, type Icons } from "../icons.js";
 import { formattingKeymap, type Shortcuts } from "../keymap.js";
 import { labelsFacet, type Labels } from "../labels.js";
 import { editorStyles, themeExtension } from "../styles/index.js";
@@ -43,6 +44,12 @@ export type MarkdownEditorOptions = {
   readonly classNames?: ClassNames;
   /** Strings to replace, such as a translation: toolbar labels and tooltips, and text commands insert. */
   readonly labels?: Labels;
+  /**
+   * Icons to replace, each an SVG string or text: the built-in toolbar
+   * buttons, More, the table menu and its items, and the preview button.
+   * A full set of another Phosphor weight is in `@netherstone/nethermark/icons/<weight>`.
+   */
+  readonly icons?: Icons;
   readonly onPaste?: PasteHook;
   readonly onDrop?: DropHook;
   /**
@@ -98,6 +105,7 @@ export type Compartments = {
   readonly readOnly: Compartment;
   readonly shortcuts: Compartment;
   readonly labels: Compartment;
+  readonly icons: Compartment;
 };
 
 /**
@@ -106,7 +114,7 @@ export type Compartments = {
  * without a wrapper of ours.
  */
 export function buildEditor(options: MarkdownEditorOptions, root: boolean): { extension: Extension; compartments: Compartments } {
-  const compartments: Compartments = { theme: new Compartment(), readOnly: new Compartment(), shortcuts: new Compartment(), labels: new Compartment() };
+  const compartments: Compartments = { theme: new Compartment(), readOnly: new Compartment(), shortcuts: new Compartment(), labels: new Compartment(), icons: new Compartment() };
   const names = options.classNames ?? {};
   const custom = options.commands ?? {};
   const { onChange } = options;
@@ -131,6 +139,7 @@ export function buildEditor(options: MarkdownEditorOptions, root: boolean): { ex
     compartments.readOnly.of(EditorState.readOnly.of(options.readOnly ?? false)),
     compartments.shortcuts.of(formattingKeymap(options.shortcuts, custom)),
     compartments.labels.of(labelsFacet.of(options.labels ?? {})),
+    compartments.icons.of(iconsFacet.of(options.icons ?? {})),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     pasteAndDrop(options.onPaste, options.onDrop),
     onChange

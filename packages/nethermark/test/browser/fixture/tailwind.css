@@ -1,0 +1,3 @@
+/* A host's Tailwind 4, as set up by default: preflight resets every margin, padding, border and list marker. */
+@import "tailwindcss";
+@source "./tailwind.ts";

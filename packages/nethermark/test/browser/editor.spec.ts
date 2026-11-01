@@ -204,6 +204,25 @@ test("labels replace the toolbar's strings, and setLabels changes them later", a
   await expect(bold).toHaveAttribute("title", /^Fett \(/);
 });
 
+test("icons replace the toolbar's icons, in menus too, and setIcons changes them later", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await create(page, { doc: "x", icons: { bold: "Gr", more: "Mo", heading4: "H4" } });
+  const toolbar = page.locator(".nme-toolbar");
+  const bold = toolbar.getByRole("button", { name: "Bold" });
+  const more = toolbar.getByRole("button", { name: "More" });
+  await expect(bold).toHaveText("Gr");
+  await expect(bold.locator("svg")).toHaveCount(0);
+  await expect(more).toHaveText("Mo");
+  await more.click();
+  await expect(page.getByRole("menuitemcheckbox", { name: "Heading 4" }).locator(".nme-icon-text")).toHaveText("H4");
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => window.editor!.setIcons({ italic: "It" }));
+  // Left out, the others go back to their defaults.
+  await expect(bold.locator("svg.nme-icon")).toHaveCount(1);
+  await expect(more.locator("svg.nme-icon")).toHaveCount(1);
+  await expect(toolbar.getByRole("button", { name: "Italic" })).toHaveText("It");
+});
+
 test("destroy takes it all out of the page", async ({ page }) => {
   await create(page, { doc: "x" });
   await page.evaluate(() => window.editor!.destroy());
