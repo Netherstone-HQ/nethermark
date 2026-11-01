@@ -1,6 +1,6 @@
 # @netherstone/nethermark-react
 
-A React component for [nethermark](../nethermark), a small Markdown source editor built on [CodeMirror 6](https://codemirror.net/). Works with React 18 and 19.
+A React component for [nethermark](../nethermark), a small Markdown source editor built on [CodeMirror 6](https://codemirror.net/). Works with React 18 and 19. [Docs](https://netherstone.app/nethermark/docs/react).
 
 The component wraps the vanilla editor, so options, commands, themes, labels and icons are the same. They're documented in the [nethermark README](../nethermark/README.md).
 
