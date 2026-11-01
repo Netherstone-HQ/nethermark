@@ -37,6 +37,27 @@ jobs:
       - id: version
         run: echo "version=$(jq -r '.devDependencies["@playwright/test"]' packages/nethermark/package.json)" >> "$GITHUB_OUTPUT"
 
+  # The React package's tests, in Chromium, on each React major it supports.
+  # Its playwright devDependency is the same version, so the image has its browser.
+  react:
+    name: React tests (${{ matrix.react }})
+    needs: playwright
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+    strategy:
+      fail-fast: false
+      matrix:
+        react: [18, 19]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+          require-lockfile: true
+      - run: pnpm --filter @netherstone/nethermark-react test:browser
+        env:
+          REACT: ${{ matrix.react }}
+
   # The tests run in Playwright's image, which already has every browser and
   # the system libraries they need, so nothing is installed on each run.
   browser:

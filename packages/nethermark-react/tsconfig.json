@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    // Checks against the editor's source, so nothing has to be built first.
+    "paths": {
+      "@netherstone/nethermark": ["../nethermark/src/index.ts"],
+      "@netherstone/nethermark/preview": ["../nethermark/src/preview/index.ts"]
+    }
+  },
+  "include": ["src", "test", "*.config.ts"]
+}

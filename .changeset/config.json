@@ -4,7 +4,7 @@
   "access": "public",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [["@netherstone/nethermark", "@netherstone/nethermark-react"]],
   "linked": [],
   "ignore": [],
   "updateInternalDependencies": "patch"
