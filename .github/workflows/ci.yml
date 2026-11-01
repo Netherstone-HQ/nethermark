@@ -23,9 +23,30 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
+  # The browser image's tag follows the Playwright version the package uses.
+  playwright:
+    name: Playwright version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: packages/nethermark/package.json
+          sparse-checkout-cone-mode: false
+      - id: version
+        run: echo "version=$(jq -r '.devDependencies["@playwright/test"]' packages/nethermark/package.json)" >> "$GITHUB_OUTPUT"
+
+  # The tests run in Playwright's image, which already has every browser and
+  # the system libraries they need, so nothing is installed on each run.
   browser:
     name: Browser tests (${{ matrix.shard }}/2)
+    needs: playwright
     runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+    # Firefox won't start as root unless HOME is root's own.
+    env:
+      HOME: /root
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +57,6 @@ jobs:
         with:
           cache: true
           require-lockfile: true
-      - run: pnpm --filter @netherstone/nethermark exec playwright install --with-deps chromium firefox webkit
       - run: pnpm --filter @netherstone/nethermark test:browser --shard=${{ matrix.shard }}/2
       - if: failure()
         uses: actions/upload-artifact@v7
