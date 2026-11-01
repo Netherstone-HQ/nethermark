@@ -1,5 +1,13 @@
 # @netherstone/nethermark-react
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [1f25988]
+- Updated dependencies [320bf52]
+  - @netherstone/nethermark@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
