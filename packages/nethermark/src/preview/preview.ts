@@ -5,8 +5,8 @@ import type { MarkdownCommand } from "../commands/command.js";
 import { themeFacet } from "../styles/index.js";
 import { themes } from "../theme/index.js";
 import { themeStyle, type Theme } from "../theme/theme.js";
-import { defineToolbarItem, type ToolbarButton } from "../toolbar/items.js";
-import { icons } from "./icons.js";
+import { defaultIcons } from "../icons.js";
+import { defineToolbarItem, withIcon, type ToolbarButton } from "../toolbar/items.js";
 import { parseHtml, sanitizeHtml } from "./sanitize.js";
 import { mountPreviewStyles } from "./styles.js";
 
@@ -96,14 +96,18 @@ export const togglePreview: MarkdownCommand = Object.assign(
   { isActive: (state: EditorState) => state.field(previewField, false)?.open ?? false },
 );
 
-/** The toolbar button that shows or hides the preview, pressed while it shows. */
+/**
+ * The toolbar button that shows or hides the preview, pressed while it shows.
+ * Without an `icon` of its own, it draws the editor's `preview` icon.
+ */
 export function previewButton(options: { readonly label?: string; readonly icon?: string } = {}): ToolbarButton {
-  return defineToolbarItem({
+  const button = defineToolbarItem({
     command: togglePreview,
-    icon: options.icon ?? icons.preview,
+    icon: options.icon ?? defaultIcons.preview,
     label: options.label ?? "Preview",
     enabledWhenReadOnly: true,
   });
+  return options.icon ? button : withIcon("preview", button);
 }
 
 /** An element in the preview that says which doc line it came from. */

@@ -10,3 +10,4 @@ export type { DropHook, PasteHook } from "./editor/paste.js";
 export type { ClassNames, Part } from "./classes.js";
 export type { Shortcuts } from "./keymap.js";
 export { defaultLabels, type LabelName, type Labels } from "./labels.js";
+export { defaultIcons, type IconName, type Icons } from "./icons.js";
