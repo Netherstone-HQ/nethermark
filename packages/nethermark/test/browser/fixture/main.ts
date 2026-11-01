@@ -6,6 +6,7 @@ import {
   createToolbar,
   defaultToolbar,
   defineCommand,
+  type Icons,
   type Labels,
   type ToolbarItem,
   themes,
@@ -85,6 +86,7 @@ type CreateOptions = {
   paste?: "sync" | "async" | "none";
   drop?: "sync" | "async";
   labels?: Labels;
+  icons?: Icons;
 };
 
 declare global {
@@ -149,6 +151,7 @@ window.create = (options = {}) => {
     ...(options.ariaLabel && { ariaLabel: options.ariaLabel }),
     ...(options.classNames && { classNames: options.classNames }),
     ...(options.labels && { labels: options.labels }),
+    ...(options.icons && { icons: options.icons }),
     onChange: (doc) => window.changes.push(doc),
     ...(options.paste && { onPaste: hook(options.paste, "**pasted**") }),
     ...(options.drop && { onDrop: hook(options.drop, "![](picture.png)") }),

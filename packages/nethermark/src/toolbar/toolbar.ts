@@ -2,12 +2,12 @@ import { Compartment, StateEffect, type EditorState } from "@codemirror/state";
 import { keymap, ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { classFor, classNamesFacet, type ClassNames, type Part } from "../classes.js";
 import { shortcutsFacet } from "../keymap.js";
+import { iconsFacet } from "../icons.js";
 import { labelsFacet } from "../labels.js";
 import { themeFacet } from "../styles/index.js";
 import { themes } from "../theme/index.js";
 import { themeStyle, type Theme } from "../theme/theme.js";
-import { icons } from "./icons.js";
-import { commandOf, defaultToolbar, isMenu, labelOf, type ToolbarButton, type ToolbarItem, type ToolbarMenu } from "./items.js";
+import { commandOf, defaultToolbar, iconOf, isMenu, labelOf, type ToolbarButton, type ToolbarItem, type ToolbarMenu } from "./items.js";
 import { formatKeys, isMac } from "./keys.js";
 import { mountToolbarStyles } from "./styles.js";
 
@@ -34,6 +34,7 @@ let ids = 0;
 /** Whether an icon is SVG markup, not text. */
 const isSvg = (icon: string) => icon.trimStart().startsWith("<svg");
 
+/** Puts an icon in an element, in place of the one it had. */
 function fillIcon(el: HTMLElement, icon: string): void {
   if (isSvg(icon)) {
     // The package's own icons, or SVG a host passed: never text from the doc.
@@ -43,7 +44,7 @@ function fillIcon(el: HTMLElement, icon: string): void {
     text.className = "nme-icon-text";
     text.setAttribute("aria-hidden", "true");
     text.textContent = icon;
-    el.append(text);
+    el.replaceChildren(text);
   }
 }
 
@@ -116,7 +117,7 @@ class Menu {
         el.className = this.toolbar.classOf("menu-item");
         el.tabIndex = -1;
         el.setAttribute("role", this.toolbar.commandOf(button).isActive ? "menuitemcheckbox" : "menuitem");
-        fillIcon(el, button.icon);
+        fillIcon(el, this.toolbar.iconOf(button));
         el.append(this.toolbar.labelOf(button));
         el.addEventListener("click", () => {
           this.close(false);
@@ -271,7 +272,7 @@ class ToolbarView {
     }
     for (const slot of this.slots) this.dom.append(slot.el);
 
-    const moreButton = this.barButton(icons.more, view.state.facet(labelsFacet).more);
+    const moreButton = this.barButton(view.state.facet(iconsFacet).more, view.state.facet(labelsFacet).more);
     this.moreAnchor = document.createElement("div");
     this.moreAnchor.className = this.classOf("more");
     this.more = new Menu(moreButton, this);
@@ -302,7 +303,7 @@ class ToolbarView {
       return { kind: "separator", el };
     }
     if (isMenu(item)) {
-      const trigger = this.barButton(item.icon, this.labelOf(item));
+      const trigger = this.barButton(this.iconOf(item), this.labelOf(item));
       const anchor = document.createElement("div");
       anchor.className = "nme-menu-anchor";
       const menu = new Menu(trigger, this);
@@ -310,7 +311,7 @@ class ToolbarView {
       anchor.append(trigger, menu.popup);
       return { kind: "menu", el: anchor, item, menu };
     }
-    const el = this.barButton(item.icon, this.labelOf(item));
+    const el = this.barButton(this.iconOf(item), this.labelOf(item));
     el.addEventListener("click", () => this.run(item));
     this.buttons.push({ el, button: item });
     return { kind: "button", el, item };
@@ -348,15 +349,28 @@ class ToolbarView {
     return labelOf(item, this.view.state.facet(labelsFacet));
   }
 
-  /** Every label on the bar and in its menus, after the editor's labels changed. */
-  private relabel(state: EditorState): void {
+  /** The icon an item draws in this editor. */
+  iconOf(item: ToolbarButton | ToolbarMenu): string {
+    return iconOf(item, this.view.state.facet(iconsFacet));
+  }
+
+  /**
+   * Every label and icon on the bar and in its menus, after the editor's
+   * labels or icons changed. The More menu fills again when the bar is fitted.
+   */
+  private redraw(state: EditorState): void {
     const labels = state.facet(labelsFacet);
+    const icons = state.facet(iconsFacet);
     this.dom.setAttribute("aria-label", labels.toolbar);
     setLabel(this.more.trigger, labels.more);
+    fillIcon(this.more.trigger, icons.more);
     for (const slot of this.slots) {
-      if (slot.kind === "button") setLabel(slot.el, labelOf(slot.item, labels));
-      else if (slot.kind === "menu") {
+      if (slot.kind === "button") {
+        setLabel(slot.el, labelOf(slot.item, labels));
+        fillIcon(slot.el, iconOf(slot.item, icons));
+      } else if (slot.kind === "menu") {
         setLabel(slot.menu.trigger, labelOf(slot.item, labels));
+        fillIcon(slot.menu.trigger, iconOf(slot.item, icons));
         slot.menu.render(slot.item.menu);
       }
     }
@@ -530,9 +544,10 @@ class ToolbarView {
   }
 
   update(update: ViewUpdate): void {
-    // Labels change widths, so the bar is fitted again, which fills More with them too.
-    const relabel = update.startState.facet(labelsFacet) !== update.state.facet(labelsFacet);
-    if (relabel) this.relabel(update.state);
+    // Labels and icons change widths, so the bar is fitted again, which fills More with them too.
+    const relabel = update.startState.facet(labelsFacet) !== update.state.facet(labelsFacet)
+      || update.startState.facet(iconsFacet) !== update.state.facet(iconsFacet);
+    if (relabel) this.redraw(update.state);
     const facets = update.startState.facet(shortcutsFacet) !== update.state.facet(shortcutsFacet)
       || update.startState.facet(themeFacet) !== update.state.facet(themeFacet);
     // Effects can change a command's pressed state without touching the doc.
