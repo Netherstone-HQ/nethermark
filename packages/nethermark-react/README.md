@@ -37,7 +37,7 @@ Styles are injected at runtime, so there's no CSS file to import.
 | `value` | `string` | The doc, for a controlled editor. A new value goes in as one undo step |
 | `defaultValue` | `string` | The doc to start with, for an uncontrolled editor |
 | `onChange` | `(value: string) => void` | Called with the whole doc after each edit. Not called when a new `value` goes in |
-| `className`, `style` | | On the element that holds the editor |
+| `className`, `style` | | On the element that holds the editor. A height there is the editor's: the toolbar stays on top and the text scrolls inside the rest. |
 | `children` | | Add-ons, such as `<Preview>` |
 
 - A controlled editor doesn't set its own edit back on itself, so typing keeps the cursor and undo history.

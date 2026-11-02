@@ -11,7 +11,8 @@ const headings = [1, 2, 3, 4, 5, 6].map((level) => `.nme-preview h${level} { fon
  * The preview's CSS, in `@layer nme` like the rest, so any host rule beats
  * it. The editor and the preview share one grid cell in tabs, so switching
  * never changes the size, and sit side by side in split. The preview takes
- * the editor's height and scrolls.
+ * the editor's height and scrolls. The one row takes a height the host gives
+ * the panes, so both sides scroll inside it instead of growing past it.
  *
  * The preview draws its own type, spacing and list markers rather than
  * leaning on the browser's defaults, which a host's reset, like Tailwind's
@@ -22,6 +23,7 @@ const css = `@layer nme {
   .nme-panes {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
   .nme-panes > * { grid-area: 1 / 1; min-width: 0; }
   .nme-panes[data-layout="split"][data-open] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

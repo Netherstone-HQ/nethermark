@@ -47,6 +47,12 @@ const editor = createMarkdownEditor({
 
 This renders the toolbar and editor into `#editor`. Styles are injected at runtime, so there's no CSS file to import.
 
+The editor grows with its text. For a fixed size, give `.nme-root` a height: the toolbar stays on top and the text scrolls inside the rest. On the [web component](#web-component), set the height on `<nether-mark>` itself.
+
+```css
+#editor .nme-root { height: 480px; }
+```
+
 The editor shows Markdown source only. For a preview, add the optional [preview](#preview) with your own renderer.
 
 ## Options
@@ -301,7 +307,7 @@ const editor = createMarkdownEditor({ parent, toolbar: [...defaultToolbar, "sepa
 const preview = createPreview(editor.view, { render: (markdown) => marked.parse(markdown) });
 ```
 
-`createPreview(view, options)` works on any `EditorView` with the editor bundle. The editor moves into a grid with the preview, which takes the editor's height and scrolls, so give `.cm-editor` a height.
+`createPreview(view, options)` works on any `EditorView` with the editor bundle. The editor moves into a grid with the preview, which takes the editor's height and scrolls, so give the editor a height as in the [quick start](#quick-start).
 
 | Option | Default | |
 | --- | --- | --- |

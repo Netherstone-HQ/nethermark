@@ -182,3 +182,16 @@ test("shows the preview add-on, with its button on the default toolbar", async (
   await expect(pane).toBeHidden();
   expect(await page.evaluate(() => window.field.previewHandle?.isOpen())).toBe(false);
 });
+
+test("a height on the element is the editor's, and the text scrolls inside it", async ({ page }) => {
+  await page.addStyleTag({ content: "nether-mark { height: 200px; }" });
+  await page.evaluate(() => (window.field.value = Array.from({ length: 100 }, (_, i) => `line ${i}`).join("\n")));
+  const sizes = await page.evaluate(() => {
+    const scroller = window.field.querySelector(".cm-scroller")!;
+    return {
+      root: window.field.querySelector(".nme-root")!.getBoundingClientRect().bottom - window.field.getBoundingClientRect().bottom,
+      scrolls: scroller.scrollHeight > scroller.clientHeight,
+    };
+  });
+  expect(sizes).toEqual({ root: 0, scrolls: true });
+});
