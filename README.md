@@ -18,7 +18,7 @@ Usage, options and the full API are in each package's README.
 
 ## Development
 
-Requires Node 22.12 or later and pnpm.
+Requires Node 24.22.2 or later and pnpm 12.
 
 ```bash
 pnpm install
