@@ -144,6 +144,39 @@ test("follows the editor's scroll through data-line, and the editor follows back
     .toBe(true);
 });
 
+test("fills a height given to the root, and both sides scroll inside it", async ({ page }) => {
+  const doc = Array.from({ length: 300 }, (_, i) => `line ${i}`).join("\n");
+  await create(page, { doc });
+  await page.addStyleTag({ content: ".nme-root { height: 300px; }" });
+  await expect(preview(page).locator("p")).toHaveCount(300);
+  const sizes = () =>
+    page.evaluate(() => {
+      const root = document.querySelector(".nme-root")!.getBoundingClientRect();
+      const panes = document.querySelector(".nme-panes")!;
+      const scroller = window.view!.scrollDOM;
+      return {
+        bottom: panes.getBoundingClientRect().bottom - root.bottom,
+        clipped: panes.scrollHeight - panes.clientHeight,
+        scrolls: scroller.scrollHeight > scroller.clientHeight,
+        editor: Math.round(window.view!.dom.getBoundingClientRect().height),
+        preview: Math.round(document.querySelector(".nme-preview")!.getBoundingClientRect().height),
+      };
+    });
+  const filled = await sizes();
+  expect(filled.bottom).toBe(0);
+  expect(filled.clipped).toBe(0);
+  expect(filled.scrolls).toBe(true);
+  expect(filled.preview).toBe(filled.editor);
+  // The end of the doc scrolls into view inside the editor, and back again.
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+End");
+  const line = (text: string) => page.locator(".cm-line", { hasText: new RegExp(`^${text}$`) });
+  await expect(line("line 299")).toBeInViewport();
+  await page.keyboard.press("ControlOrMeta+Home");
+  await expect(line("line 0")).toBeInViewport();
+  await expect(line("line 299")).toHaveCount(0);
+});
+
 test("destroy puts the editor back where it was", async ({ page }) => {
   await create(page, { doc: "text" });
   await page.evaluate(() => window.preview!.destroy());

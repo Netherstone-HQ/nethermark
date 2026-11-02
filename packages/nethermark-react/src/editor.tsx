@@ -211,7 +211,8 @@ export const MarkdownEditor = forwardRef<EditorHandle | null, MarkdownEditorProp
   useImperativeHandle<EditorHandle | null, EditorHandle | null>(ref, () => editor, [editor]);
 
   return (
-    <div ref={parent} className={props.className} style={props.style}>
+    // nme-host passes a height given to this wrapper on to the editor.
+    <div ref={parent} className={props.className ? `nme-host ${props.className}` : "nme-host"} style={props.style}>
       <AddonsContext.Provider value={controller.addons}>{props.children}</AddonsContext.Provider>
     </div>
   );

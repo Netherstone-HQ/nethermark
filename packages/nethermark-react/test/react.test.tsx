@@ -52,6 +52,15 @@ describe("MarkdownEditor", () => {
     expect(editor!.getValue()).toBe("# Hi");
   });
 
+  test("a height in style is the editor's, and the text scrolls inside it", () => {
+    const doc = Array.from({ length: 100 }, (_, i) => `line ${i}`).join("\n");
+    render(<MarkdownEditor defaultValue={doc} style={{ height: 200 }} />);
+    const wrapper = host.firstElementChild!;
+    const scroller = host.querySelector(".cm-scroller")!;
+    expect(host.querySelector(".nme-root")!.getBoundingClientRect().bottom).toBe(wrapper.getBoundingClientRect().bottom);
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
+  });
+
   test("a controlled editor doesn't set its own echo back, so the cursor and undo stay", () => {
     let editor: EditorHandle | null = null;
     const changes: string[] = [];

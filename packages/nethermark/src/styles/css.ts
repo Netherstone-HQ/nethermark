@@ -23,6 +23,12 @@ const headingGutters = [1, 2, 3, 4, 5, 6]
  * `!important`. Every value is a theme token.
  */
 const css = `@layer nme {
+  /* The toolbar on top, and the editor in the rest of any height the host gives the root, scrolling inside it. */
+  .nme-root { display: flex; flex-direction: column; }
+  .nme-root > :is(.cm-editor, .nme-panes) { flex: 1 1 auto; min-height: 0; }
+  /* The wrappers, <nether-mark> and the React component's .nme-host, pass a height they're given to the root. */
+  :is(nether-mark, .nme-host) { display: flex; flex-direction: column; }
+  :is(nether-mark, .nme-host) > .nme-root { flex: 1 1 auto; min-height: 0; }
   .cm-editor .nme-heading { color: ${token("heading")}; font-weight: bold; }
   .cm-editor .nme-strong { color: ${token("strong")}; font-weight: bold; }
   .cm-editor .nme-em { color: ${token("emphasis")}; font-style: italic; }
@@ -84,7 +90,11 @@ export const codeMirrorStyles = EditorView.theme({
     fontSize: token("fontSize"),
     colorScheme: `var(${COLOR_SCHEME})`,
   },
-  "&.cm-focused": { outline: `${token("focusRingWidth")} solid ${token("focusRing")}` },
+  // The ring sits inside the editor's edge, so a host frame that clips its overflow, like rounded corners, doesn't cut it off.
+  "&.cm-focused": {
+    outline: `${token("focusRingWidth")} solid ${token("focusRing")}`,
+    outlineOffset: `calc(-1 * ${token("focusRingWidth")})`,
+  },
   ".cm-scroller": {
     fontFamily: token("fontFamily"),
     lineHeight: token("lineHeight"),
