@@ -90,7 +90,11 @@ export const codeMirrorStyles = EditorView.theme({
     fontSize: token("fontSize"),
     colorScheme: `var(${COLOR_SCHEME})`,
   },
-  "&.cm-focused": { outline: `${token("focusRingWidth")} solid ${token("focusRing")}` },
+  // The ring sits inside the editor's edge, so a host frame that clips its overflow, like rounded corners, doesn't cut it off.
+  "&.cm-focused": {
+    outline: `${token("focusRingWidth")} solid ${token("focusRing")}`,
+    outlineOffset: `calc(-1 * ${token("focusRingWidth")})`,
+  },
   ".cm-scroller": {
     fontFamily: token("fontFamily"),
     lineHeight: token("lineHeight"),
